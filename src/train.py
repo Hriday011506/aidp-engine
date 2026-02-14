@@ -1,77 +1,87 @@
 import pandas as pd
 import numpy as np
 import os
-import pickle
+import joblib
+
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_absolute_error, r2_score
 
+DATA_PATH = os.path.join("data", "processed", "monthly_data.csv")
+MODEL_PATH = os.path.join("models", "demand_model.pkl")
 
-def train_model():
+def load_data():
+    if os.path.exists(DATA_PATH):
+        df = pd.read_csv(DATA_PATH)
+    else:
+        print("Dataset not found. Creating synthetic dataset...")
+        np.random.seed(42)
+        months = 60
 
-    print("🚀 Starting AIDP Model Training...")
+        df = pd.DataFrame({
+            "holiday_count": np.random.randint(0, 5, months),
+            "avg_temp": np.random.randint(20, 40, months),
+            "viral_score": np.random.randint(10, 100, months),
+        })
 
-    # -------------------------------
-    # Load processed data
-    # -------------------------------
-    data_path = "data/processed/daily_data.csv"
+        df["monthly_sales"] = (
+            50000 +
+            df["holiday_count"] * 2000 +
+            df["avg_temp"] * 300 +
+            df["viral_score"] * 150 +
+            np.random.randint(-5000, 5000, months)
+        )
 
-    df = pd.read_csv(data_path)
+    # Feature Engineering
+    df["month"] = np.tile(np.arange(1, 13), len(df)//12 + 1)[:len(df)]
+    df["prev_month_sales"] = df["monthly_sales"].shift(1)
+    df = df.dropna()
 
-    print("✅ Data loaded successfully")
-    print("📊 Total rows:", len(df))
+    return df
 
-    # -------------------------------
-    # Feature Selection
-    # -------------------------------
-    features = ["is_holiday", "avg_temp", "viral_score", "local_events"]
-    target = "daily_sales"
+def train():
 
-    X = df[features]
-    y = df[target]
+    df = load_data()
 
-    # -------------------------------
-    # Train/Test Split
-    # -------------------------------
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
+    X = df[[
+        "holiday_count",
+        "avg_temp",
+        "viral_score",
+        "month",
+        "prev_month_sales"
+    ]]
 
-    print("📈 Training Random Forest model...")
+    y = df["monthly_sales"]
+
+    tscv = TimeSeriesSplit(n_splits=5)
 
     model = RandomForestRegressor(
-        n_estimators=200,
-        max_depth=10,
+        n_estimators=300,
+        max_depth=15,
+        min_samples_split=5,
         random_state=42
     )
 
-    model.fit(X_train, y_train)
+    model.fit(X, y)
 
-    # -------------------------------
-    # Evaluation
-    # -------------------------------
+    # Evaluate on last split
+    for train_index, test_index in tscv.split(X):
+        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+        y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+
     predictions = model.predict(X_test)
 
     mae = mean_absolute_error(y_test, predictions)
     r2 = r2_score(y_test, predictions)
 
-    print("📊 Model Performance:")
-    print("MAE:", round(mae, 2))
-    print("R2 Score:", round(r2, 3))
+    print(f"MAE: {mae}")
+    print(f"R2 Score: {r2}")
 
-    # -------------------------------
-    # Save Model
-    # -------------------------------
+    # Save model
     os.makedirs("models", exist_ok=True)
+    joblib.dump(model, MODEL_PATH)
 
-    model_path = "models/demand_model.pkl"
-
-    with open(model_path, "wb") as f:
-        pickle.dump(model, f)
-
-    print("✅ Model saved successfully!")
-    print("📁 Saved at:", model_path)
-
+    print("Model saved successfully!")
 
 if __name__ == "__main__":
-    train_model()
+    train()
