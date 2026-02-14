@@ -14,7 +14,7 @@ st.subheader("AI-Driven Inventory & Dynamic Pricing System")
 # -------------------------------
 @st.cache_data
 def load_data():
-    return pd.read_csv("data/processed/daily_data.csv")
+   return pd.read_csv("data/processed/daily_data.csv")
 
 df = load_data()
 
