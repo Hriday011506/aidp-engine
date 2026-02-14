@@ -5,89 +5,46 @@ import os
 
 def preprocess_data():
 
-    print("🚀 Starting AIDP preprocessing pipeline...")
+    print("🚀 Starting AIDP preprocessing (Daily Level)...")
 
-    # -------------------------------
-    # Load raw datasets
-    # -------------------------------
     train_path = "data/raw/train.csv"
     holiday_path = "data/raw/holidays_events.csv"
 
-    print("📂 Loading datasets...")
     train = pd.read_csv(train_path)
     holidays = pd.read_csv(holiday_path)
 
-    print("✅ Datasets loaded successfully")
-
-    # -------------------------------
-    # Convert date columns
-    # -------------------------------
+    # Convert date
     train["date"] = pd.to_datetime(train["date"])
     holidays["date"] = pd.to_datetime(holidays["date"])
 
-    # -------------------------------
-    # Create month column
-    # -------------------------------
-    train["month"] = train["date"].dt.to_period("M")
-    holidays["month"] = holidays["date"].dt.to_period("M")
+    # Sample data (to avoid huge memory load)
+    train = train.sample(n=50000, random_state=42)
 
-    print("📅 Aggregating daily sales to monthly level...")
+    # Aggregate sales per day
+    daily_sales = train.groupby("date")["sales"].sum().reset_index()
 
-    # -------------------------------
-    # Aggregate monthly sales
-    # -------------------------------
-    monthly_sales = (
-        train
-        .groupby("month")["sales"]
-        .sum()
-        .reset_index()
-    )
+    # Holiday flag per day
+    holidays["is_holiday"] = 1
+    holiday_flag = holidays[["date", "is_holiday"]]
 
-    monthly_sales.rename(columns={"sales": "monthly_sales"}, inplace=True)
+    daily = daily_sales.merge(holiday_flag, on="date", how="left")
+    daily["is_holiday"] = daily["is_holiday"].fillna(0)
 
-    # -------------------------------
-    # Count holidays per month
-    # -------------------------------
-    holiday_count = (
-        holidays
-        .groupby("month")
-        .size()
-        .reset_index(name="holiday_count")
-    )
-
-    # Merge holiday info
-    monthly = monthly_sales.merge(
-        holiday_count,
-        on="month",
-        how="left"
-    )
-
-    monthly["holiday_count"] = monthly["holiday_count"].fillna(0)
-
-    # -------------------------------
-    # Add External Features (Simulated for v1)
-    # -------------------------------
-    print("🌦 Adding external signals...")
-
+    # Add external features
     np.random.seed(42)
+    daily["avg_temp"] = np.random.randint(20, 40, len(daily))
+    daily["viral_score"] = np.random.randint(10, 100, len(daily))
+    daily["local_events"] = np.random.randint(0, 5, len(daily))
 
-    monthly["avg_temp"] = np.random.randint(20, 40, len(monthly))
-    monthly["viral_score"] = np.random.randint(10, 100, len(monthly))
+    # Rename
+    daily.rename(columns={"sales": "daily_sales"}, inplace=True)
 
-    # -------------------------------
-    # Final formatting
-    # -------------------------------
-    monthly["month"] = monthly["month"].astype(str)
-
-    # Ensure processed folder exists
+    # Save
     os.makedirs("data/processed", exist_ok=True)
+    daily.to_csv("data/processed/daily_data.csv", index=False)
 
-    output_path = "data/processed/monthly_data.csv"
-    monthly.to_csv(output_path, index=False)
-
-    print("✅ Preprocessing complete!")
-    print(f"📁 Processed dataset saved at: {output_path}")
-    print("📊 Total months processed:", len(monthly))
+    print("✅ Daily dataset created!")
+    print("📊 Total rows:", len(daily))
 
 
 if __name__ == "__main__":
