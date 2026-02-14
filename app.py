@@ -10,46 +10,59 @@ import matplotlib.pyplot as plt
 # ----------------------------------------------------
 st.set_page_config(page_title="AIDP Engine", layout="wide")
 
-st.title("🧠 AIDP Engine")
+st.markdown("""
+<style>
+.big-title { font-size:40px; font-weight:800; }
+.metric-box { padding:20px; border-radius:15px; background:#f0f2f6; }
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="big-title">🧠 AIDP Engine</div>', unsafe_allow_html=True)
 st.subheader("AI-Driven Inventory & Dynamic Pricing System")
 
 # ----------------------------------------------------
-# DATA LOADING
+# DATA LOADING WITH FALLBACK
 # ----------------------------------------------------
-DATA_FOLDER = os.path.join("data", "processed")
-DATA_FILE = "monthly_data.csv"
-DATA_PATH = os.path.join(DATA_FOLDER, DATA_FILE)
+DATA_PATH = os.path.join("data", "processed", "monthly_data.csv")
 
 @st.cache_data
-def load_data(path):
-    return pd.read_csv(path)
+def load_data():
+    if os.path.exists(DATA_PATH):
+        try:
+            return pd.read_csv(DATA_PATH)
+        except:
+            st.warning("CSV corrupted. Using synthetic dataset instead.")
+    else:
+        st.warning("Dataset not found. Using synthetic dataset instead.")
 
-# Debug section (helps during deployment)
-if not os.path.exists(DATA_FOLDER):
-    st.error(f"Folder not found: {DATA_FOLDER}")
-    st.stop()
+    # Synthetic fallback dataset
+    np.random.seed(42)
+    months = 60
+    df = pd.DataFrame({
+        "holiday_count": np.random.randint(0, 5, months),
+        "avg_temp": np.random.randint(20, 40, months),
+        "viral_score": np.random.randint(10, 100, months),
+    })
 
-if not os.path.exists(DATA_PATH):
-    st.error(f"File not found: {DATA_PATH}")
-    st.write("Files inside processed folder:")
-    st.write(os.listdir(DATA_FOLDER))
-    st.stop()
+    df["monthly_sales"] = (
+        50000 +
+        df["holiday_count"] * 2000 +
+        df["avg_temp"] * 300 +
+        df["viral_score"] * 150 +
+        np.random.randint(-5000, 5000, months)
+    )
 
-df = load_data(DATA_PATH)
+    return df
 
-st.success("Dataset loaded successfully!")
+df = load_data()
+
+st.success("Dataset Ready!")
 
 # ----------------------------------------------------
 # MODEL TRAINING
 # ----------------------------------------------------
 @st.cache_resource
 def train_model(data):
-    required_columns = ["holiday_count", "avg_temp", "viral_score", "monthly_sales"]
-
-    for col in required_columns:
-        if col not in data.columns:
-            st.error(f"Missing required column: {col}")
-            st.stop()
 
     X = data[["holiday_count", "avg_temp", "viral_score"]]
     y = data["monthly_sales"]
@@ -65,45 +78,39 @@ def train_model(data):
 
 model = train_model(df)
 
-st.success("Model trained successfully!")
+st.success("Model Trained Successfully!")
 
 # ----------------------------------------------------
-# USER INPUT SECTION
+# USER INPUTS
 # ----------------------------------------------------
 st.markdown("## 📊 Business Input Parameters")
 
 col1, col2, col3 = st.columns(3)
 
-holiday_count = col1.slider("Number of Holidays in Month", 0, 15, 2)
+holiday_count = col1.slider("Number of Holidays in Month", 0, 10, 2)
 avg_temp = col2.slider("Average Temperature (°C)", 15, 45, 30)
 viral_score = col3.slider("Social Media Viral Score", 0, 100, 50)
 
 # ----------------------------------------------------
-# FORECAST BUTTON
+# FORECAST
 # ----------------------------------------------------
-if st.button("🚀 Run Forecast"):
+if st.button("🚀 Generate Forecast"):
 
     input_data = np.array([[holiday_count, avg_temp, viral_score]])
     monthly_prediction = model.predict(input_data)[0]
 
     reorder_qty = monthly_prediction * 1.1
-
-    base_price = 100
-    elasticity = 0.01
-    optimized_price = base_price * (1 + elasticity * (monthly_prediction / 100000))
+    optimized_price = 100 * (1 + 0.01 * (monthly_prediction / 100000))
 
     st.markdown("---")
     st.markdown("## 📈 Forecast Results")
 
-    colA, colB = st.columns(2)
+    colA, colB, colC = st.columns(3)
 
     colA.metric("Predicted Monthly Demand", f"{int(monthly_prediction)} units")
-    colB.metric("Recommended Reorder Quantity", f"{int(reorder_qty)} units")
+    colB.metric("Recommended Inventory", f"{int(reorder_qty)} units")
+    colC.metric("Optimized Price", f"₹ {round(optimized_price, 2)}")
 
-    st.markdown("### 💰 Pricing Recommendation")
-    st.metric("Suggested Optimized Price", f"₹ {round(optimized_price, 2)}")
-
-    # Visualization
     fig, ax = plt.subplots()
     ax.bar(["Monthly Forecast"], [monthly_prediction])
     ax.set_ylabel("Units")
