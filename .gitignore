@@ -1,0 +1,11 @@
+# Ignore raw datasets
+data/raw/
+
+# Ignore large CSV files
+*.csv
+
+# Ignore model files (optional)
+models/*.pkl
+
+# Ignore Python cache
+__pycache__/
