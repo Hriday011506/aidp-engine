@@ -14,3 +14,9 @@ def preprocess_data():
     monthly.rename(columns={'sales': 'monthly_sales'}, inplace=True)
 
     monthly.to_csv("data/processed/monthly_data.csv", index=False)
+
+import numpy as np
+
+monthly['avg_temp'] = np.random.randint(20, 40, len(monthly))
+monthly['local_events'] = np.random.randint(0, 8, len(monthly))
+monthly['viral_score'] = np.random.randint(10, 100, len(monthly))
