@@ -1,34 +1,47 @@
 import streamlit as st
 import numpy as np
-import pickle
-import os
+import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
 import matplotlib.pyplot as plt
 
-
-# -------------------------------
-# Page Config
-# -------------------------------
-st.set_page_config(
-    page_title="AIDP Engine",
-    layout="wide"
-)
+st.set_page_config(page_title="AIDP Engine", layout="wide")
 
 st.title("🧠 AIDP Engine")
 st.subheader("AI-Driven Inventory & Dynamic Pricing System")
 
+# -------------------------------
+# Load Dataset
+# -------------------------------
+@st.cache_data
+def load_data():
+    return pd.read_csv("data/processed/daily_data.csv")
+
+df = load_data()
 
 # -------------------------------
-# Load Trained Model
+# Train Model Automatically
 # -------------------------------
-model_path = "models/demand_model.pkl"
+@st.cache_resource
+def train_model(data):
 
-if not os.path.exists(model_path):
-    st.error("Model not found. Please run training first.")
-    st.stop()
+    features = ["is_holiday", "avg_temp", "viral_score", "local_events"]
+    target = "daily_sales"
 
-with open(model_path, "rb") as f:
-    model = pickle.load(f)
+    X = data[features]
+    y = data[target]
 
+    model = RandomForestRegressor(
+        n_estimators=150,
+        max_depth=10,
+        random_state=42
+    )
+
+    model.fit(X, y)
+    return model
+
+model = train_model(df)
+
+st.success("Model loaded successfully!")
 
 # -------------------------------
 # User Inputs
@@ -42,25 +55,14 @@ avg_temp = col2.slider("Average Temperature (°C)", 15, 45, 30)
 viral_score = col3.slider("Social Media Viral Score", 0, 100, 50)
 local_events = col4.slider("Local Events Count", 0, 10, 2)
 
-
-# -------------------------------
-# Prediction Button
-# -------------------------------
 if st.button("🚀 Run Forecast"):
 
-    # Prepare input
     input_data = np.array([[is_holiday, avg_temp, viral_score, local_events]])
 
-    # Predict daily demand
     daily_prediction = model.predict(input_data)[0]
-
-    # Monthly forecast (30 days)
     monthly_forecast = daily_prediction * 30
-
-    # Inventory recommendation (10% safety buffer)
     reorder_qty = monthly_forecast * 1.1
 
-    # Dynamic pricing logic
     base_price = 100
     elasticity = 0.01
     optimized_price = base_price * (1 + elasticity * (monthly_forecast / 10000))
@@ -76,9 +78,6 @@ if st.button("🚀 Run Forecast"):
 
     st.markdown("### 💰 Pricing Recommendation")
     st.metric("Suggested Optimized Price", f"₹ {round(optimized_price,2)}")
-
-    # Visualization
-    st.markdown("### 📊 Demand Visualization")
 
     fig, ax = plt.subplots()
     ax.bar(["Daily Forecast", "Monthly Forecast"],
