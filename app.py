@@ -8,7 +8,9 @@ import matplotlib.pyplot as plt
 import holidays
 import os
 from sklearn.ensemble import RandomForestRegressor
-HF_API_KEY = "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"
+
+HF_API_KEY = os.getenv("HF_API_KEY", "")
+HF_MODEL_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
 
 st.set_page_config(
     page_title="AIDP Engine – AI Forecasting System",
@@ -134,7 +136,7 @@ data = load_data()
 rf_model = train_model(data)
 
 
-# ---------------- GEMINI REASONING
+# ---------------- HUGGING FACE REASONING
 def generate_reason(product, temp, rainy, holidays_count, viral):
 
     rain_text = "rainy" if rainy else "not rainy"
@@ -152,41 +154,41 @@ def generate_reason(product, temp, rainy, holidays_count, viral):
     Explain clearly in 4 lines.
     """
 
+    if not HF_API_KEY:
+        return "HF Error: Missing API key. Set the HF_API_KEY environment variable."
+
     try:
         response = requests.post(
-            "https://router.huggingface.co/hf-inference/models/google/flan-t5-large",
+            HF_MODEL_URL,
             headers={
                 "Authorization": f"Bearer {HF_API_KEY}",
                 "Content-Type": "application/json"
             },
-            json={"inputs": prompt},
-            timeout=20
+            json={
+                "inputs": prompt,
+                "parameters": {"max_new_tokens": 120, "temperature": 0.3},
+                "options": {"wait_for_model": True}
+            },
+            timeout=30
         )
+
+        if response.status_code != 200:
+            return f"HF Error {response.status_code}: {response.text}"
 
         result = response.json()
 
-        if isinstance(result, list) and "generated_text" in result[0]:
-            return result[0]["generated_text"]
+        if isinstance(result, list) and result and "generated_text" in result[0]:
+            return result[0]["generated_text"].strip()
 
-        if "error" in result:
+        if isinstance(result, dict) and "generated_text" in result:
+            return result["generated_text"].strip()
+
+        if isinstance(result, dict) and "error" in result:
             return f"HF Error: {result['error']}"
 
-        return "Unexpected response format."
+        return f"Unexpected HF response format: {result}"
 
-    except Exception as e:
-        return f"HF Exception: {str(e)}"
-        # SHOW RAW RESPONSE
-        st.write("HF Raw Response:", result)
-
-        if isinstance(result, list) and "generated_text" in result[0]:
-            return result[0]["generated_text"]
-
-        if "error" in result:
-            return f"HF Error: {result['error']}"
-
-        return "Unexpected HF response format."
-
-    except Exception as e:
+    except requests.RequestException as e:
         return f"HF Exception: {str(e)}"
 
 # ---------------- INPUT SECTION
