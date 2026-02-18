@@ -6,6 +6,8 @@ import datetime
 import calendar
 import matplotlib.pyplot as plt
 import holidays
+import google.generativeai as genai
+import os
 from sklearn.ensemble import RandomForestRegressor
 
 st.set_page_config(
@@ -14,6 +16,16 @@ st.set_page_config(
     layout="wide"
 )
 
+# ---------------- GEMINI SETUP
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+
+if GEMINI_KEY:
+    genai.configure(api_key=GEMINI_KEY)
+    gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+else:
+    gemini_model = None
+
+# ---------------- HEADER
 st.markdown("""
 <h1 style='text-align: center; color: #1f4e79;'>AIDP Engine 📊</h1>
 <h4 style='text-align: center; color: gray;'>
@@ -23,7 +35,7 @@ AI-Driven Sales Forecasting & Inventory Optimization System
 
 st.divider()
 
-# ---------------- WEATHER (SAFE)
+# ---------------- WEATHER
 def get_weather(city):
     try:
         geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1"
@@ -48,7 +60,7 @@ def get_weather(city):
         return 25, False
 
 
-# ---------------- HOLIDAYS (OFFLINE RELIABLE)
+# ---------------- HOLIDAYS
 def get_holidays(year, month):
     india_holidays = holidays.India(years=year)
     total_days = calendar.monthrange(year, month)[1]
@@ -60,6 +72,17 @@ def get_holidays(year, month):
             count += 1
 
     return count
+
+
+# ---------------- VIRAL SCORE SIMULATION
+def simulate_viral_score(product):
+    base_score = np.random.randint(30, 70)
+
+    trending_keywords = ["phone", "iphone", "fashion", "jacket", "sneaker"]
+    if any(word in product.lower() for word in trending_keywords):
+        base_score += np.random.randint(10, 30)
+
+    return min(base_score, 100)
 
 
 # ---------------- DATA + MODEL
@@ -94,6 +117,34 @@ def train_model(df):
 data = load_data()
 rf_model = train_model(data)
 
+
+# ---------------- GEMINI REASONING
+def generate_reason(product, temp, rainy, holidays_count, viral):
+    if gemini_model is None:
+        return "Gemini not configured. Showing ML-based forecast."
+
+    rain_text = "rainy" if rainy else "not rainy"
+
+    prompt = f"""
+    You are a supply chain and inventory management expert.
+
+    Product: {product}
+    Temperature: {temp}°C
+    Weather: {rain_text}
+    Non-working days: {holidays_count}
+    Social media trend score: {viral}
+
+    Should inventory increase or decrease?
+    Give a short professional reasoning (4-5 lines).
+    """
+
+    try:
+        response = gemini_model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        return "AI reasoning unavailable. Showing ML-based forecast."
+
+
 # ---------------- INPUT SECTION
 st.subheader("📥 Enter Business Parameters")
 
@@ -116,11 +167,12 @@ with c2:
     st.success(f"🌡 Temperature: {avg_temp:.2f} °C")
 
 with c3:
-    viral_score = st.slider("Social Media Viral Score", 0, 100, 50)
+    viral_score = simulate_viral_score(product_name)
+    st.metric("📊 Simulated Social Media Trend Score", viral_score)
 
 st.divider()
 
-# ---------------- FORECAST BUTTON
+# ---------------- FORECAST
 if st.button("🚀 Generate Forecast"):
 
     input_df = pd.DataFrame({
@@ -130,34 +182,17 @@ if st.button("🚀 Generate Forecast"):
     })
 
     predicted_sales = rf_model.predict(input_df)[0]
-
-    # ---------------- SMART REASONING (DYNAMIC RULE BASED)
-    product = product_name.lower()
-    reason = "Standard demand pattern."
-
-    if "flour" in product or "wheat" in product:
-        if is_rainy:
-            predicted_sales *= 0.85
-            reason = "Rainy weather increases moisture risk. Wheat flour is prone to spoilage and ants. Maintain lower inventory."
-        else:
-            reason = "Dry product. Maintain moderate inventory levels."
-
-    elif "milk" in product or "bread" in product:
-        predicted_sales *= 0.9
-        reason = "Perishable item. Lower inventory reduces spoilage risk."
-
-    elif avg_temp > 32:
-        predicted_sales *= 1.15
-        reason = "High temperature detected. Seasonal demand likely higher."
-
-    elif viral_score > 70:
-        predicted_sales *= 1.2
-        reason = "Strong social media trend suggests higher market demand."
-
     recommended_inventory = predicted_sales * 1.10
     optimized_price = 500 + (predicted_sales * 0.02)
 
-    # ---------------- OUTPUT
+    reason = generate_reason(
+        product_name,
+        avg_temp,
+        is_rainy,
+        holiday_count,
+        viral_score
+    )
+
     st.subheader("📊 Forecast Results")
 
     m1, m2, m3 = st.columns(3)
@@ -167,7 +202,6 @@ if st.button("🚀 Generate Forecast"):
 
     st.info(f"📌 Inventory Insight:\n\n{reason}")
 
-    # ---------------- GRAPH
     fig, ax = plt.subplots()
     ax.bar(
         ["Predicted Sales", "Recommended Inventory"],
