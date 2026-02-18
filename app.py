@@ -17,13 +17,8 @@ st.set_page_config(
 )
 
 # ---------------- GEMINI SETUP
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-
-if GEMINI_KEY:
-    genai.configure(api_key=GEMINI_KEY)
-    gemini_model = genai.GenerativeModel("gemini-1.5-flash")
-else:
-    gemini_model = None
+genai.configure(api_key="AIzaSyC0Lminvarj3xdahbQOmR-W1XzwqRVAO6g")
+gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 
 # ---------------- HEADER
 st.markdown("""
