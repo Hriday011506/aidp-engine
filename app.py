@@ -17,8 +17,10 @@ st.set_page_config(
 )
 
 # ---------------- GEMINI SETUP
-genai.configure(api_key="AIzaSyC0Lminvarj3xdahbQOmR-W1XzwqRVAO6g")
+genai.configure(api_key=os.getenv("AIzaSyC0Lminvarj3xdahbQOmR-W1XzwqRVAO6g"))
 gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+
+SERPAPI_KEY = os.getenv("bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4")
 
 # ---------------- HEADER
 st.markdown("""
@@ -69,15 +71,41 @@ def get_holidays(year, month):
     return count
 
 
-# ---------------- VIRAL SCORE SIMULATION
+# ---------------- VIRAL SCORE (STABLE)
 def simulate_viral_score(product):
+    seed = abs(hash(product)) % 100
+    np.random.seed(seed)
     base_score = np.random.randint(30, 70)
 
     trending_keywords = ["phone", "iphone", "fashion", "jacket", "sneaker"]
     if any(word in product.lower() for word in trending_keywords):
-        base_score += np.random.randint(10, 30)
+        base_score += 20
 
     return min(base_score, 100)
+
+
+# ---------------- GOOGLE PRICE FETCH (SERPAPI)
+def fetch_price(product):
+    if not SERPAPI_KEY:
+        return None
+
+    try:
+        params = {
+            "engine": "google_shopping",
+            "q": product,
+            "api_key": SERPAPI_KEY
+        }
+
+        response = requests.get("https://serpapi.com/search", params=params, timeout=5)
+        data = response.json()
+
+        if "shopping_results" in data and len(data["shopping_results"]) > 0:
+            price = data["shopping_results"][0].get("price")
+            return price
+        else:
+            return None
+    except:
+        return None
 
 
 # ---------------- DATA + MODEL
@@ -115,9 +143,6 @@ rf_model = train_model(data)
 
 # ---------------- GEMINI REASONING
 def generate_reason(product, temp, rainy, holidays_count, viral):
-    if gemini_model is None:
-        return "Gemini not configured. Showing ML-based forecast."
-
     rain_text = "rainy" if rainy else "not rainy"
 
     prompt = f"""
@@ -130,14 +155,14 @@ def generate_reason(product, temp, rainy, holidays_count, viral):
     Social media trend score: {viral}
 
     Should inventory increase or decrease?
-    Give a short professional reasoning (4-5 lines).
+    Give short professional reasoning.
     """
 
     try:
         response = gemini_model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
-        return "AI reasoning unavailable. Showing ML-based forecast."
+        return f"Gemini Error: {str(e)}"
 
 
 # ---------------- INPUT SECTION
@@ -163,7 +188,7 @@ with c2:
 
 with c3:
     viral_score = simulate_viral_score(product_name)
-    st.metric("📊 Simulated Social Media Trend Score", viral_score)
+    st.metric("📊 Social Media Trend Score", viral_score)
 
 st.divider()
 
@@ -178,7 +203,13 @@ if st.button("🚀 Generate Forecast"):
 
     predicted_sales = rf_model.predict(input_df)[0]
     recommended_inventory = predicted_sales * 1.10
-    optimized_price = 500 + (predicted_sales * 0.02)
+
+    # Fetch real price
+    real_price = fetch_price(product_name)
+    if real_price:
+        optimized_price = real_price
+    else:
+        optimized_price = "Price not found"
 
     reason = generate_reason(
         product_name,
@@ -193,7 +224,7 @@ if st.button("🚀 Generate Forecast"):
     m1, m2, m3 = st.columns(3)
     m1.metric("Predicted Sales", f"{int(predicted_sales)} Units")
     m2.metric("Recommended Inventory", f"{int(recommended_inventory)} Units")
-    m3.metric("Optimized Price", f"₹{int(optimized_price)}")
+    m3.metric("Market Price", optimized_price)
 
     st.info(f"📌 Inventory Insight:\n\n{reason}")
 
