@@ -20,15 +20,21 @@ AI-Driven Sales Forecasting & Inventory Optimization System
 st.divider()
 
 def get_weather(city):
-    API_KEY = "bf12212183b271451562ab3820b1e230"
-    url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
     try:
-        response = requests.get(url, timeout=5)
-        data = response.json()
-        if response.status_code == 200:
-            return data["main"]["temp"]
-        else:
+        geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1"
+        geo_response = requests.get(geo_url, timeout=5).json()
+
+        if "results" not in geo_response:
             return None
+
+        lat = geo_response["results"][0]["latitude"]
+        lon = geo_response["results"][0]["longitude"]
+
+        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
+        weather_response = requests.get(weather_url, timeout=5).json()
+
+        return weather_response["current_weather"]["temperature"]
+
     except:
         return None
 
