@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import requests
 import datetime
+import calendar
 import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestRegressor
 
@@ -28,7 +29,7 @@ def get_weather(city):
         geo = requests.get(geo_url, timeout=5).json()
 
         if "results" not in geo:
-            return None
+            return None, None
 
         lat = geo["results"][0]["latitude"]
         lon = geo["results"][0]["longitude"]
@@ -36,23 +37,41 @@ def get_weather(city):
         weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
         weather = requests.get(weather_url, timeout=5).json()
 
-        return weather["current_weather"]["temperature"]
+        temp = weather["current_weather"]["temperature"]
+        weather_code = weather["current_weather"]["weathercode"]
+
+        return temp, weather_code
     except:
-        return None
+        return None, None
 
 
-# ---------------- HOLIDAY API (Nager.Date)
+# ---------------- HOLIDAYS (Public + Weekends)
 def get_holidays(year, month):
     try:
         url = f"https://date.nager.at/api/v3/PublicHolidays/{year}/IN"
-        holidays = requests.get(url, timeout=5).json()
+        response = requests.get(url, timeout=5)
 
-        count = 0
-        for h in holidays:
-            date = datetime.datetime.strptime(h["date"], "%Y-%m-%d")
-            if date.month == month:
-                count += 1
-        return count
+        if response.status_code != 200:
+            return 0
+
+        public_holidays = response.json()
+        holiday_dates = []
+
+        for h in public_holidays:
+            date_obj = datetime.datetime.strptime(h["date"], "%Y-%m-%d")
+            if date_obj.month == month:
+                holiday_dates.append(date_obj.date())
+
+        total_days = calendar.monthrange(year, month)[1]
+        weekend_count = 0
+
+        for day in range(1, total_days + 1):
+            date = datetime.date(year, month, day)
+            if date.weekday() >= 5:
+                weekend_count += 1
+
+        return len(holiday_dates) + weekend_count
+
     except:
         return 0
 
@@ -95,19 +114,26 @@ st.subheader("📥 Enter Business Parameters")
 c1, c2, c3 = st.columns(3)
 
 with c1:
-    product_name = st.text_input("Enter Product Name", "Winter Jacket")
-    year = st.selectbox("Year", [2025, 2026, 2027])
-    month = st.selectbox("Month", list(range(1, 13)))
+    product_name = st.text_input("Enter Product Name", "Wheat Flour")
+
+    year = st.selectbox("Select Year", [2025, 2026, 2027])
+
+    month_names = list(calendar.month_name)[1:]
+    selected_month_name = st.selectbox("Select Month", month_names)
+    month = month_names.index(selected_month_name) + 1
+
     holiday_count = get_holidays(year, month)
-    st.success(f"📅 Holidays in Selected Month: {holiday_count}")
+    st.success(f"📅 Total Non-Working Days: {holiday_count}")
 
 with c2:
     city = st.text_input("Enter City", "Jaipur")
-    avg_temp = get_weather(city)
-    if avg_temp:
+    avg_temp, weather_code = get_weather(city)
+
+    if avg_temp is not None:
         st.success(f"🌡 Temperature: {avg_temp:.2f} °C")
     else:
         avg_temp = 25
+        weather_code = None
         st.warning("Using default 25°C")
 
 with c3:
@@ -126,21 +152,41 @@ if st.button("🚀 Generate Forecast"):
 
     predicted_sales = model.predict(input_df)[0]
 
-    # Product Logic
+    # ---------------- SMART PRODUCT + WEATHER LOGIC
     product = product_name.lower()
-    adjustment_note = ""
+    reason = "Standard demand pattern."
 
-    if "winter" in product or "jacket" in product:
-        predicted_sales *= 1.2
-        adjustment_note = "Seasonal winter demand detected. Increase inventory."
-    elif "electronics" in product or "phone" in product:
-        predicted_sales *= 1.1
-        adjustment_note = "Electronics product. Moderate-high demand."
-    elif "milk" in product or "food" in product:
+    moisture_sensitive = ["flour", "wheat", "rice", "grains", "powder"]
+    perishable = ["milk", "bread", "vegetable", "fruit"]
+    winter_products = ["jacket", "coat", "heater"]
+    summer_products = ["cooler", "fan", "ice cream"]
+
+    is_rainy = weather_code is not None and 50 <= weather_code <= 67
+
+    if any(word in product for word in moisture_sensitive):
+        if is_rainy:
+            predicted_sales *= 0.85
+            reason = "Rainy weather increases moisture risk. Product prone to spoilage/ants. Maintain lower inventory."
+        else:
+            reason = "Moisture-sensitive product. Avoid excessive storage."
+
+    elif any(word in product for word in perishable):
         predicted_sales *= 0.9
-        adjustment_note = "Perishable product. Maintain lower buffer stock."
-    else:
-        adjustment_note = "Standard demand pattern."
+        reason = "Perishable item. Lower buffer stock recommended."
+
+    elif any(word in product for word in winter_products):
+        if avg_temp < 20:
+            predicted_sales *= 1.2
+            reason = "Cold weather detected. Higher seasonal demand expected."
+        else:
+            reason = "Winter product but temperature not low."
+
+    elif any(word in product for word in summer_products):
+        if avg_temp > 30:
+            predicted_sales *= 1.2
+            reason = "High temperature detected. Increased summer demand."
+        else:
+            reason = "Summer product but temperature moderate."
 
     recommended_inventory = predicted_sales * 1.10
     optimized_price = 500 + (predicted_sales * 0.02)
@@ -153,14 +199,16 @@ if st.button("🚀 Generate Forecast"):
     m2.metric("Recommended Inventory", f"{int(recommended_inventory)} Units")
     m3.metric("Optimized Price", f"₹{int(optimized_price)}")
 
-    st.info(f"📌 Product Insight: {adjustment_note}")
+    st.info(f"📌 Inventory Insight: {reason}")
 
-    # Improved Graph
+    # ---------------- IMPROVED GRAPH
     fig, ax = plt.subplots()
-    ax.bar(["Predicted Sales", "Recommended Inventory"],
-           [predicted_sales, recommended_inventory])
+    ax.bar(
+        ["Predicted Sales", "Recommended Inventory"],
+        [predicted_sales, recommended_inventory]
+    )
     ax.set_ylabel("Units")
-    ax.set_title("Sales & Inventory Comparison")
+    ax.set_title("Sales vs Inventory Comparison")
     st.pyplot(fig)
 
 st.divider()
