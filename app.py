@@ -1,120 +1,137 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import os
 from sklearn.ensemble import RandomForestRegressor
-import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 
-# ----------------------------------------------------
-# PAGE CONFIG
-# ----------------------------------------------------
-st.set_page_config(page_title="AIDP Engine", layout="wide")
+# -----------------------------
+# PAGE CONFIG (MUST BE FIRST)
+# -----------------------------
+st.set_page_config(
+    page_title="AIDP Engine – AI Forecasting System",
+    page_icon="📊",
+    layout="wide"
+)
 
+# -----------------------------
+# HEADER SECTION
+# -----------------------------
 st.markdown("""
-<style>
-.big-title { font-size:40px; font-weight:800; }
-.metric-box { padding:20px; border-radius:15px; background:#f0f2f6; }
-</style>
+<h1 style='text-align: center; color: #1f4e79;'>
+AIDP Engine 📊
+</h1>
+<h4 style='text-align: center; text-align: center; color: gray;'>
+AI-Driven Sales Forecasting & Inventory Optimization System
+</h4>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="big-title">🧠 AIDP Engine</div>', unsafe_allow_html=True)
-st.subheader("AI-Driven Inventory & Dynamic Pricing System")
+st.divider()
 
-# ----------------------------------------------------
-# DATA LOADING WITH FALLBACK
-# ----------------------------------------------------
-DATA_PATH = os.path.join("data", "processed", "monthly_data.csv")
-
+# -----------------------------
+# LOAD / CREATE DATA
+# -----------------------------
 @st.cache_data
 def load_data():
-    if os.path.exists(DATA_PATH):
-        try:
-            return pd.read_csv(DATA_PATH)
-        except:
-            st.warning("CSV corrupted. Using synthetic dataset instead.")
-    else:
-        st.warning("Dataset not found. Using synthetic dataset instead.")
-
-    # Synthetic fallback dataset
+    # Creating synthetic dataset
     np.random.seed(42)
-    months = 60
-    df = pd.DataFrame({
-        "holiday_count": np.random.randint(0, 5, months),
-        "avg_temp": np.random.randint(20, 40, months),
-        "viral_score": np.random.randint(10, 100, months),
+    data = pd.DataFrame({
+        "holiday_count": np.random.randint(0, 10, 100),
+        "avg_temp": np.random.randint(10, 40, 100),
+        "viral_score": np.random.randint(0, 100, 100)
     })
 
-    df["monthly_sales"] = (
-        50000 +
-        df["holiday_count"] * 2000 +
-        df["avg_temp"] * 300 +
-        df["viral_score"] * 150 +
-        np.random.randint(-5000, 5000, months)
+    # Sales formula (simulated real-world relationship)
+    data["monthly_sales"] = (
+        200
+        + data["holiday_count"] * 50
+        + data["avg_temp"] * 10
+        + data["viral_score"] * 5
+        + np.random.normal(0, 50, 100)
     )
 
-    return df
+    return data
 
-df = load_data()
 
-st.success("Dataset Ready!")
-
-# ----------------------------------------------------
-# MODEL TRAINING
-# ----------------------------------------------------
+# -----------------------------
+# TRAIN MODEL
+# -----------------------------
 @st.cache_resource
 def train_model(data):
-
     X = data[["holiday_count", "avg_temp", "viral_score"]]
     y = data["monthly_sales"]
 
-    model = RandomForestRegressor(
-        n_estimators=200,
-        max_depth=10,
-        random_state=42
-    )
-
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X, y)
+
     return model
 
-model = train_model(df)
 
-st.success("Model Trained Successfully!")
+data = load_data()
+model = train_model(data)
 
-# ----------------------------------------------------
-# USER INPUTS
-# ----------------------------------------------------
-st.markdown("## 📊 Business Input Parameters")
+# -----------------------------
+# USER INPUT SECTION
+# -----------------------------
+st.subheader("📥 Enter Business Parameters")
 
 col1, col2, col3 = st.columns(3)
 
-holiday_count = col1.slider("Number of Holidays in Month", 0, 10, 2)
-avg_temp = col2.slider("Average Temperature (°C)", 15, 45, 30)
-viral_score = col3.slider("Social Media Viral Score", 0, 100, 50)
+with col1:
+    holiday_count = st.slider("Number of Holidays", 0, 15, 5)
 
-# ----------------------------------------------------
-# FORECAST
-# ----------------------------------------------------
+with col2:
+    avg_temp = st.slider("Average Temperature (°C)", 0, 50, 25)
+
+with col3:
+    viral_score = st.slider("Social Media Viral Score", 0, 100, 50)
+
+st.divider()
+
+# -----------------------------
+# FORECAST BUTTON
+# -----------------------------
 if st.button("🚀 Generate Forecast"):
 
-    input_data = np.array([[holiday_count, avg_temp, viral_score]])
-    monthly_prediction = model.predict(input_data)[0]
+    input_data = pd.DataFrame({
+        "holiday_count": [holiday_count],
+        "avg_temp": [avg_temp],
+        "viral_score": [viral_score]
+    })
 
-    reorder_qty = monthly_prediction * 1.1
-    optimized_price = 100 * (1 + 0.01 * (monthly_prediction / 100000))
+    predicted_sales = model.predict(input_data)[0]
 
-    st.markdown("---")
-    st.markdown("## 📈 Forecast Results")
+    # Business Logic
+    recommended_inventory = predicted_sales * 1.10   # 10% buffer
+    optimized_price = 500 + (predicted_sales * 0.02)
 
-    colA, colB, colC = st.columns(3)
+    st.subheader("📊 Forecast Results")
 
-    colA.metric("Predicted Monthly Demand", f"{int(monthly_prediction)} units")
-    colB.metric("Recommended Inventory", f"{int(reorder_qty)} units")
-    colC.metric("Optimized Price", f"₹ {round(optimized_price, 2)}")
+    col1, col2, col3 = st.columns(3)
 
-    fig, ax = plt.subplots()
-    ax.bar(["Monthly Forecast"], [monthly_prediction])
-    ax.set_ylabel("Units")
-    ax.set_title("Predicted Monthly Demand")
-    st.pyplot(fig)
+    with col1:
+        st.metric("📈 Predicted Monthly Sales", f"{int(predicted_sales)} Units")
 
-    st.success("AIDP Forecast Generated Successfully!")
+    with col2:
+        st.metric("📦 Recommended Inventory", f"{int(recommended_inventory)} Units")
+
+    with col3:
+        st.metric("💰 Optimized Price", f"₹{int(optimized_price)}")
+
+    st.divider()
+
+    # Bar Chart
+    chart_data = pd.DataFrame({
+        "Category": ["Predicted Sales", "Recommended Inventory"],
+        "Units": [predicted_sales, recommended_inventory]
+    })
+
+    st.bar_chart(chart_data.set_index("Category"))
+
+# -----------------------------
+# FOOTER
+# -----------------------------
+st.divider()
+st.markdown(
+    "<center><small>Developed by Hriday Mahajan | Machine Learning Project | 2026</small></center>",
+    unsafe_allow_html=True
+)
