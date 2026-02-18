@@ -244,12 +244,13 @@ if st.button("🚀 Generate Forecast"):
         optimized_price = "Price not found"
 
     reason = generate_reason(
-        product_name,
-        avg_temp,
-        is_rainy,
-        holiday_count,
-        viral_score
-    )
+    product_name,
+    avg_temp,
+    is_rainy,
+    holiday_count,
+    viral_score,
+    predicted_sales
+)
 
     st.subheader("📊 Forecast Results")
 
