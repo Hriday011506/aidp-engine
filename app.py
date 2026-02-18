@@ -6,9 +6,9 @@ import datetime
 import calendar
 import matplotlib.pyplot as plt
 import holidays
-import google.generativeai as genai
 import os
 from sklearn.ensemble import RandomForestRegressor
+HF_API_KEY = "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"
 
 st.set_page_config(
     page_title="AIDP Engine – AI Forecasting System",
@@ -16,13 +16,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# ---------------- GEMINI SETUP
-try:
-    genai.configure(api_key="AIzaSyC0Lminvarj3xdahbQOmR-W1XzwqRVAO6g")
-    gemini_model = genai.GenerativeModel("gemini-1.5-flash")
-except Exception as e:
-    st.error(f"Gemini Setup Error: {e}")
-    gemini_model = None
 
 # ---------------- SERPAPI SETUP
 SERPAPI_KEY = "bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"
@@ -90,28 +83,24 @@ def simulate_viral_score(product):
 
 # ---------------- GOOGLE PRICE FETCH (SERPAPI)
 def fetch_price(product):
-    if not SERPAPI_KEY:
-        return None
-
     try:
         params = {
             "engine": "google_shopping",
             "q": product,
-            "api_key": SERPAPI_KEY
+            "api_key": SERPAPI_KEY,
+            "gl": "in",
+            "hl": "en"
         }
 
         response = requests.get("https://serpapi.com/search", params=params, timeout=5)
         data = response.json()
 
         if "shopping_results" in data and len(data["shopping_results"]) > 0:
-            price = data["shopping_results"][0].get("price")
-            return price
+            return data["shopping_results"][0].get("price")
         else:
             return None
     except:
         return None
-
-
 # ---------------- DATA + MODEL
 @st.cache_data
 def load_data():
@@ -147,27 +136,39 @@ rf_model = train_model(data)
 
 # ---------------- GEMINI REASONING
 def generate_reason(product, temp, rainy, holidays_count, viral):
+
     rain_text = "rainy" if rainy else "not rainy"
 
     prompt = f"""
-    You are a supply chain and inventory management expert.
+    You are an inventory management expert.
 
     Product: {product}
     Temperature: {temp}°C
     Weather: {rain_text}
     Non-working days: {holidays_count}
-    Social media trend score: {viral}
+    Trend score: {viral}
 
     Should inventory increase or decrease?
-    Give short professional reasoning.
+    Explain clearly in 4 lines.
     """
 
     try:
-        response = gemini_model.generate_content(prompt)
-        return response.text.strip()
-    except Exception as e:
-        return f"Gemini Error: {str(e)}"
+        response = requests.post(
+            "https://api-inference.huggingface.co/models/google/flan-t5-large",
+            headers={"Authorization": f"Bearer {HF_API_KEY}"},
+            json={"inputs": prompt},
+            timeout=10
+        )
 
+        result = response.json()
+
+        if isinstance(result, list):
+            return result[0]["generated_text"]
+        else:
+            return "AI response unavailable."
+
+    except Exception as e:
+        return f"HF Error: {str(e)}"
 
 # ---------------- INPUT SECTION
 st.subheader("📥 Enter Business Parameters")
