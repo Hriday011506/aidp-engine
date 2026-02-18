@@ -17,11 +17,15 @@ st.set_page_config(
 )
 
 # ---------------- GEMINI SETUP
-genai.configure(api_key=os.getenv("AIzaSyC0Lminvarj3xdahbQOmR-W1XzwqRVAO6g"))
-gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+try:
+    genai.configure(api_key="AIzaSyC0Lminvarj3xdahbQOmR-W1XzwqRVAO6g")
+    gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+except Exception as e:
+    st.error(f"Gemini Setup Error: {e}")
+    gemini_model = None
 
-SERPAPI_KEY = os.getenv("bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4")
-
+# ---------------- SERPAPI SETUP
+SERPAPI_KEY = "bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"
 # ---------------- HEADER
 st.markdown("""
 <h1 style='text-align: center; color: #1f4e79;'>AIDP Engine 📊</h1>
