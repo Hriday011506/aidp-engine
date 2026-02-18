@@ -6,8 +6,6 @@ import datetime
 import calendar
 import matplotlib.pyplot as plt
 import holidays
-import google.generativeai as genai
-import os
 from sklearn.ensemble import RandomForestRegressor
 
 st.set_page_config(
@@ -15,10 +13,6 @@ st.set_page_config(
     page_icon="📊",
     layout="wide"
 )
-
-# Configure Gemini
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-1.5-flash")
 
 st.markdown("""
 <h1 style='text-align: center; color: #1f4e79;'>AIDP Engine 📊</h1>
@@ -29,14 +23,14 @@ AI-Driven Sales Forecasting & Inventory Optimization System
 
 st.divider()
 
-# ---------------- WEATHER
+# ---------------- WEATHER (SAFE)
 def get_weather(city):
     try:
         geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1"
         geo = requests.get(geo_url, timeout=5).json()
 
         if "results" not in geo:
-            return None, None
+            return 25, False
 
         lat = geo["results"][0]["latitude"]
         lon = geo["results"][0]["longitude"]
@@ -45,14 +39,16 @@ def get_weather(city):
         weather = requests.get(weather_url, timeout=5).json()
 
         temp = weather["current_weather"]["temperature"]
-        weather_code = weather["current_weather"]["weathercode"]
+        code = weather["current_weather"]["weathercode"]
 
-        return temp, weather_code
+        is_rainy = 50 <= code <= 67
+        return temp, is_rainy
+
     except:
-        return None, None
+        return 25, False
 
 
-# ---------------- HOLIDAYS (Offline Reliable)
+# ---------------- HOLIDAYS (OFFLINE RELIABLE)
 def get_holidays(year, month):
     india_holidays = holidays.India(years=year)
     total_days = calendar.monthrange(year, month)[1]
@@ -98,30 +94,6 @@ def train_model(df):
 data = load_data()
 rf_model = train_model(data)
 
-
-# ---------------- AI REASONING
-def generate_inventory_reason(product, temp, rainy, holidays_count, viral):
-    rain_status = "rainy" if rainy else "not rainy"
-
-    prompt = f"""
-    Product: {product}
-    Temperature: {temp}°C
-    Weather: {rain_status}
-    Non-working days: {holidays_count}
-    Trend score: {viral}
-
-    Explain whether inventory should increase or decrease.
-    """
-
-    try:
-        response = model.generate_content(prompt)
-        if response and hasattr(response, "text"):
-            return response.text
-        else:
-            return "AI reasoning unavailable. Using baseline forecast."
-    except Exception as e:
-        return "AI reasoning failed. Using baseline forecast."
-
 # ---------------- INPUT SECTION
 st.subheader("📥 Enter Business Parameters")
 
@@ -129,8 +101,8 @@ c1, c2, c3 = st.columns(3)
 
 with c1:
     product_name = st.text_input("Enter Product Name", "Wheat Flour")
-    year = st.selectbox("Select Year", [2025, 2026, 2027])
 
+    year = st.selectbox("Select Year", [2025, 2026, 2027])
     month_names = list(calendar.month_name)[1:]
     selected_month = st.selectbox("Select Month", month_names)
     month = month_names.index(selected_month) + 1
@@ -140,21 +112,15 @@ with c1:
 
 with c2:
     city = st.text_input("Enter City", "Jaipur")
-    avg_temp, weather_code = get_weather(city)
-
-    if avg_temp is not None:
-        st.success(f"🌡 Temperature: {avg_temp:.2f} °C")
-    else:
-        avg_temp = 25
-        weather_code = None
-        st.warning("Using default 25°C")
+    avg_temp, is_rainy = get_weather(city)
+    st.success(f"🌡 Temperature: {avg_temp:.2f} °C")
 
 with c3:
     viral_score = st.slider("Social Media Viral Score", 0, 100, 50)
 
 st.divider()
 
-# ---------------- FORECAST
+# ---------------- FORECAST BUTTON
 if st.button("🚀 Generate Forecast"):
 
     input_df = pd.DataFrame({
@@ -165,19 +131,33 @@ if st.button("🚀 Generate Forecast"):
 
     predicted_sales = rf_model.predict(input_df)[0]
 
-    is_rainy = weather_code is not None and 50 <= weather_code <= 67
+    # ---------------- SMART REASONING (DYNAMIC RULE BASED)
+    product = product_name.lower()
+    reason = "Standard demand pattern."
+
+    if "flour" in product or "wheat" in product:
+        if is_rainy:
+            predicted_sales *= 0.85
+            reason = "Rainy weather increases moisture risk. Wheat flour is prone to spoilage and ants. Maintain lower inventory."
+        else:
+            reason = "Dry product. Maintain moderate inventory levels."
+
+    elif "milk" in product or "bread" in product:
+        predicted_sales *= 0.9
+        reason = "Perishable item. Lower inventory reduces spoilage risk."
+
+    elif avg_temp > 32:
+        predicted_sales *= 1.15
+        reason = "High temperature detected. Seasonal demand likely higher."
+
+    elif viral_score > 70:
+        predicted_sales *= 1.2
+        reason = "Strong social media trend suggests higher market demand."
 
     recommended_inventory = predicted_sales * 1.10
     optimized_price = 500 + (predicted_sales * 0.02)
 
-    reason = generate_inventory_reason(
-        product_name,
-        avg_temp,
-        is_rainy,
-        holiday_count,
-        viral_score
-    )
-
+    # ---------------- OUTPUT
     st.subheader("📊 Forecast Results")
 
     m1, m2, m3 = st.columns(3)
@@ -187,6 +167,7 @@ if st.button("🚀 Generate Forecast"):
 
     st.info(f"📌 Inventory Insight:\n\n{reason}")
 
+    # ---------------- GRAPH
     fig, ax = plt.subplots()
     ax.bar(
         ["Predicted Sales", "Recommended Inventory"],
