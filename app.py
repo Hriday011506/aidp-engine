@@ -5,6 +5,9 @@ import requests
 import datetime
 import calendar
 import matplotlib.pyplot as plt
+import holidays
+import google.generativeai as genai
+import os
 from sklearn.ensemble import RandomForestRegressor
 
 st.set_page_config(
@@ -12,6 +15,10 @@ st.set_page_config(
     page_icon="📊",
     layout="wide"
 )
+
+# Configure Gemini
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 st.markdown("""
 <h1 style='text-align: center; color: #1f4e79;'>AIDP Engine 📊</h1>
@@ -22,7 +29,7 @@ AI-Driven Sales Forecasting & Inventory Optimization System
 
 st.divider()
 
-# ---------------- WEATHER (Open-Meteo)
+# ---------------- WEATHER
 def get_weather(city):
     try:
         geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1"
@@ -45,35 +52,18 @@ def get_weather(city):
         return None, None
 
 
-# ---------------- HOLIDAYS (Public + Weekends)
+# ---------------- HOLIDAYS (Offline Reliable)
 def get_holidays(year, month):
-    try:
-        url = f"https://date.nager.at/api/v3/PublicHolidays/{year}/IN"
-        response = requests.get(url, timeout=5)
+    india_holidays = holidays.India(years=year)
+    total_days = calendar.monthrange(year, month)[1]
+    count = 0
 
-        if response.status_code != 200:
-            return 0
+    for day in range(1, total_days + 1):
+        date = datetime.date(year, month, day)
+        if date.weekday() >= 5 or date in india_holidays:
+            count += 1
 
-        public_holidays = response.json()
-        holiday_dates = []
-
-        for h in public_holidays:
-            date_obj = datetime.datetime.strptime(h["date"], "%Y-%m-%d")
-            if date_obj.month == month:
-                holiday_dates.append(date_obj.date())
-
-        total_days = calendar.monthrange(year, month)[1]
-        weekend_count = 0
-
-        for day in range(1, total_days + 1):
-            date = datetime.date(year, month, day)
-            if date.weekday() >= 5:
-                weekend_count += 1
-
-        return len(holiday_dates) + weekend_count
-
-    except:
-        return 0
+    return count
 
 
 # ---------------- DATA + MODEL
@@ -106,7 +96,33 @@ def train_model(df):
 
 
 data = load_data()
-model = train_model(data)
+rf_model = train_model(data)
+
+
+# ---------------- AI REASONING
+def generate_inventory_reason(product, temp, rainy, holidays_count, viral):
+    rain_status = "rainy" if rainy else "not rainy"
+
+    prompt = f"""
+    You are an inventory management expert.
+
+    Product: {product}
+    Temperature: {temp}°C
+    Weather condition: {rain_status}
+    Non-working days this month: {holidays_count}
+    Social media trend score: {viral}
+
+    Based on environmental risks, seasonal demand, and trend signals,
+    explain clearly whether inventory should be increased or decreased.
+    Give short professional reasoning.
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except:
+        return "AI reasoning currently unavailable."
+
 
 # ---------------- INPUT SECTION
 st.subheader("📥 Enter Business Parameters")
@@ -115,12 +131,11 @@ c1, c2, c3 = st.columns(3)
 
 with c1:
     product_name = st.text_input("Enter Product Name", "Wheat Flour")
-
     year = st.selectbox("Select Year", [2025, 2026, 2027])
 
     month_names = list(calendar.month_name)[1:]
-    selected_month_name = st.selectbox("Select Month", month_names)
-    month = month_names.index(selected_month_name) + 1
+    selected_month = st.selectbox("Select Month", month_names)
+    month = month_names.index(selected_month) + 1
 
     holiday_count = get_holidays(year, month)
     st.success(f"📅 Total Non-Working Days: {holiday_count}")
@@ -150,58 +165,30 @@ if st.button("🚀 Generate Forecast"):
         "viral_score": [viral_score]
     })
 
-    predicted_sales = model.predict(input_df)[0]
-
-    # ---------------- SMART PRODUCT + WEATHER LOGIC
-    product = product_name.lower()
-    reason = "Standard demand pattern."
-
-    moisture_sensitive = ["flour", "wheat", "rice", "grains", "powder"]
-    perishable = ["milk", "bread", "vegetable", "fruit"]
-    winter_products = ["jacket", "coat", "heater"]
-    summer_products = ["cooler", "fan", "ice cream"]
+    predicted_sales = rf_model.predict(input_df)[0]
 
     is_rainy = weather_code is not None and 50 <= weather_code <= 67
-
-    if any(word in product for word in moisture_sensitive):
-        if is_rainy:
-            predicted_sales *= 0.85
-            reason = "Rainy weather increases moisture risk. Product prone to spoilage/ants. Maintain lower inventory."
-        else:
-            reason = "Moisture-sensitive product. Avoid excessive storage."
-
-    elif any(word in product for word in perishable):
-        predicted_sales *= 0.9
-        reason = "Perishable item. Lower buffer stock recommended."
-
-    elif any(word in product for word in winter_products):
-        if avg_temp < 20:
-            predicted_sales *= 1.2
-            reason = "Cold weather detected. Higher seasonal demand expected."
-        else:
-            reason = "Winter product but temperature not low."
-
-    elif any(word in product for word in summer_products):
-        if avg_temp > 30:
-            predicted_sales *= 1.2
-            reason = "High temperature detected. Increased summer demand."
-        else:
-            reason = "Summer product but temperature moderate."
 
     recommended_inventory = predicted_sales * 1.10
     optimized_price = 500 + (predicted_sales * 0.02)
 
+    reason = generate_inventory_reason(
+        product_name,
+        avg_temp,
+        is_rainy,
+        holiday_count,
+        viral_score
+    )
+
     st.subheader("📊 Forecast Results")
 
     m1, m2, m3 = st.columns(3)
-
     m1.metric("Predicted Sales", f"{int(predicted_sales)} Units")
     m2.metric("Recommended Inventory", f"{int(recommended_inventory)} Units")
     m3.metric("Optimized Price", f"₹{int(optimized_price)}")
 
-    st.info(f"📌 Inventory Insight: {reason}")
+    st.info(f"📌 Inventory Insight:\n\n{reason}")
 
-    # ---------------- IMPROVED GRAPH
     fig, ax = plt.subplots()
     ax.bar(
         ["Predicted Sales", "Recommended Inventory"],
