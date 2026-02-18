@@ -140,8 +140,6 @@ def generate_reason(product, temp, rainy, holidays_count, viral):
     rain_text = "rainy" if rainy else "not rainy"
 
     prompt = f"""
-    You are an inventory management expert.
-
     Product: {product}
     Temperature: {temp}°C
     Weather: {rain_text}
@@ -157,18 +155,24 @@ def generate_reason(product, temp, rainy, holidays_count, viral):
             "https://api-inference.huggingface.co/models/google/flan-t5-large",
             headers={"Authorization": f"Bearer {HF_API_KEY}"},
             json={"inputs": prompt},
-            timeout=10
+            timeout=15
         )
 
         result = response.json()
 
-        if isinstance(result, list):
+        # SHOW RAW RESPONSE
+        st.write("HF Raw Response:", result)
+
+        if isinstance(result, list) and "generated_text" in result[0]:
             return result[0]["generated_text"]
-        else:
-            return "AI response unavailable."
+
+        if "error" in result:
+            return f"HF Error: {result['error']}"
+
+        return "Unexpected HF response format."
 
     except Exception as e:
-        return f"HF Error: {str(e)}"
+        return f"HF Exception: {str(e)}"
 
 # ---------------- INPUT SECTION
 st.subheader("📥 Enter Business Parameters")
