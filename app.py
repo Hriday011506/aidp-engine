@@ -20,7 +20,7 @@ AI-Driven Sales Forecasting & Inventory Optimization System
 st.divider()
 
 def get_weather(city):
-    API_KEY = "a4e1c2d537eb57d0cab44b215e91bfae"
+    API_KEY = "146206b320e15c733984238e385223b5"
     url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
     try:
         response = requests.get(url, timeout=5)
