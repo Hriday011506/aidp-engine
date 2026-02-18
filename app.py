@@ -9,7 +9,7 @@ import holidays
 import os
 from sklearn.ensemble import RandomForestRegressor
 
-HF_API_KEY = os.getenv("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", "")
+HF_API_KEY = os.getenv("HF_API_KEY", "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")
 HF_MODEL_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
 
 st.set_page_config(
