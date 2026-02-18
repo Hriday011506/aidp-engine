@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import requests
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
 
 # -----------------------------
 # PAGE CONFIG (MUST BE FIRST)
@@ -14,13 +14,13 @@ st.set_page_config(
 )
 
 # -----------------------------
-# HEADER SECTION
+# HEADER
 # -----------------------------
 st.markdown("""
 <h1 style='text-align: center; color: #1f4e79;'>
 AIDP Engine 📊
 </h1>
-<h4 style='text-align: center; text-align: center; color: gray;'>
+<h4 style='text-align: center; color: gray;'>
 AI-Driven Sales Forecasting & Inventory Optimization System
 </h4>
 """, unsafe_allow_html=True)
@@ -28,11 +28,25 @@ AI-Driven Sales Forecasting & Inventory Optimization System
 st.divider()
 
 # -----------------------------
-# LOAD / CREATE DATA
+# WEATHER FUNCTION
+# -----------------------------
+def get_weather(city="Jaipur"):
+    API_KEY = "a4e1c2d537eb57d0cab44b215e91bfae"
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
+
+    try:
+        response = requests.get(url)
+        data = response.json()
+        temperature = data["main"]["temp"]
+        return temperature
+    except:
+        return None
+
+# -----------------------------
+# LOAD DATA
 # -----------------------------
 @st.cache_data
 def load_data():
-    # Creating synthetic dataset
     np.random.seed(42)
     data = pd.DataFrame({
         "holiday_count": np.random.randint(0, 10, 100),
@@ -40,7 +54,6 @@ def load_data():
         "viral_score": np.random.randint(0, 100, 100)
     })
 
-    # Sales formula (simulated real-world relationship)
     data["monthly_sales"] = (
         200
         + data["holiday_count"] * 50
@@ -50,7 +63,6 @@ def load_data():
     )
 
     return data
-
 
 # -----------------------------
 # TRAIN MODEL
@@ -70,7 +82,7 @@ data = load_data()
 model = train_model(data)
 
 # -----------------------------
-# USER INPUT SECTION
+# INPUT SECTION
 # -----------------------------
 st.subheader("📥 Enter Business Parameters")
 
@@ -80,7 +92,14 @@ with col1:
     holiday_count = st.slider("Number of Holidays", 0, 15, 5)
 
 with col2:
-    avg_temp = st.slider("Average Temperature (°C)", 0, 50, 25)
+    city = st.text_input("Enter City for Live Weather", "Jaipur")
+    avg_temp = get_weather(city)
+
+    if avg_temp:
+        st.success(f"🌡 Live Temperature in {city}: {avg_temp:.2f} °C")
+    else:
+        st.warning("Could not fetch weather data. Using default 25°C.")
+        avg_temp = 25
 
 with col3:
     viral_score = st.slider("Social Media Viral Score", 0, 100, 50)
@@ -101,7 +120,7 @@ if st.button("🚀 Generate Forecast"):
     predicted_sales = model.predict(input_data)[0]
 
     # Business Logic
-    recommended_inventory = predicted_sales * 1.10   # 10% buffer
+    recommended_inventory = predicted_sales * 1.10
     optimized_price = 500 + (predicted_sales * 0.02)
 
     st.subheader("📊 Forecast Results")
@@ -119,7 +138,6 @@ if st.button("🚀 Generate Forecast"):
 
     st.divider()
 
-    # Bar Chart
     chart_data = pd.DataFrame({
         "Category": ["Predicted Sales", "Recommended Inventory"],
         "Units": [predicted_sales, recommended_inventory]
