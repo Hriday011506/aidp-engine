@@ -104,25 +104,23 @@ def generate_inventory_reason(product, temp, rainy, holidays_count, viral):
     rain_status = "rainy" if rainy else "not rainy"
 
     prompt = f"""
-    You are an inventory management expert.
-
     Product: {product}
     Temperature: {temp}°C
-    Weather condition: {rain_status}
-    Non-working days this month: {holidays_count}
-    Social media trend score: {viral}
+    Weather: {rain_status}
+    Non-working days: {holidays_count}
+    Trend score: {viral}
 
-    Based on environmental risks, seasonal demand, and trend signals,
-    explain clearly whether inventory should be increased or decreased.
-    Give short professional reasoning.
+    Explain whether inventory should increase or decrease.
     """
 
     try:
         response = model.generate_content(prompt)
-        return response.text
-    except:
-        return "AI reasoning currently unavailable."
-
+        if response and hasattr(response, "text"):
+            return response.text
+        else:
+            return "AI reasoning unavailable. Using baseline forecast."
+    except Exception as e:
+        return "AI reasoning failed. Using baseline forecast."
 
 # ---------------- INPUT SECTION
 st.subheader("📥 Enter Business Parameters")
