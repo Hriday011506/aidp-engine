@@ -137,59 +137,65 @@ rf_model = train_model(data)
 
 
 # ---------------- HUGGING FACE REASONING
-def generate_reason(product, temp, rainy, holidays_count, viral):
+def generate_reason(product, temp, rainy, holidays_count, viral, predicted_sales):
 
-    rain_text = "rainy" if rainy else "not rainy"
+    product_lower = product.lower()
+    insights = []
 
-    prompt = f"""
-    You are an inventory management expert.
+    # 1️⃣ Demand Intensity
+    if predicted_sales > 600:
+        insights.append("Forecast indicates strong demand momentum.")
+    elif predicted_sales < 350:
+        insights.append("Predicted sales volume is moderate to low.")
+    else:
+        insights.append("Demand projection appears stable.")
 
-    Product: {product}
-    Temperature: {temp}°C
-    Weather: {rain_text}
-    Non-working days: {holidays_count}
-    Trend score: {viral}
+    # 2️⃣ Weather Impact
+    if rainy:
+        insights.append("Rainy conditions may disrupt logistics and increase storage sensitivity.")
+    if temp > 32:
+        insights.append("High temperature can influence seasonal consumption patterns.")
+    if temp < 18:
+        insights.append("Cool weather may reduce certain product category demand.")
 
-    Should inventory increase or decrease?
-    Explain clearly in 4 lines.
-    """
+    # 3️⃣ Holiday Impact
+    if holidays_count > 6:
+        insights.append("Higher number of non-working days may increase retail purchasing activity.")
+    elif holidays_count < 3:
+        insights.append("Limited holidays suggest steady routine demand cycles.")
 
-    if not HF_API_KEY:
-        return "HF Error: Missing API key. Set the HF_API_KEY environment variable."
+    # 4️⃣ Viral / Trend Impact
+    if viral > 75:
+        insights.append("Strong social media engagement signals rising consumer interest.")
+    elif viral < 40:
+        insights.append("Digital engagement appears moderate.")
 
-    try:
-        response = requests.post(
-            HF_MODEL_URL,
-            headers={
-                "Authorization": f"Bearer {HF_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "inputs": prompt,
-                "parameters": {"max_new_tokens": 120, "temperature": 0.3},
-                "options": {"wait_for_model": True}
-            },
-            timeout=30
-        )
+    # 5️⃣ Product Category Sensitivity
+    if any(word in product_lower for word in ["flour", "grain", "rice", "powder"]):
+        if rainy:
+            insights.append("Moisture-sensitive product category detected.")
+        insights.append("Storage conditions directly impact inventory holding risk.")
 
-        if response.status_code != 200:
-            return f"HF Error {response.status_code}: {response.text}"
+    elif any(word in product_lower for word in ["milk", "bread", "vegetable", "fruit"]):
+        insights.append("Perishable goods require tighter inventory control to reduce wastage.")
 
-        result = response.json()
+    elif any(word in product_lower for word in ["phone", "laptop", "electronics"]):
+        insights.append("Technology products are trend-driven and respond strongly to digital demand.")
 
-        if isinstance(result, list) and result and "generated_text" in result[0]:
-            return result[0]["generated_text"].strip()
+    elif any(word in product_lower for word in ["jacket", "fashion", "clothing"]):
+        insights.append("Fashion products are influenced by seasonal and trend cycles.")
 
-        if isinstance(result, dict) and "generated_text" in result:
-            return result["generated_text"].strip()
+    # 6️⃣ Final Decision Logic
+    if viral > 70 or holidays_count > 6:
+        decision = "Increase inventory moderately to capture demand surge."
+    elif rainy and any(word in product_lower for word in ["flour", "grain"]):
+        decision = "Reduce inventory to minimize spoilage and storage risk."
+    elif predicted_sales < 350:
+        decision = "Maintain lean inventory strategy."
+    else:
+        decision = "Maintain balanced inventory levels."
 
-        if isinstance(result, dict) and "error" in result:
-            return f"HF Error: {result['error']}"
-
-        return f"Unexpected HF response format: {result}"
-
-    except requests.RequestException as e:
-        return f"HF Exception: {str(e)}"
+    return " ".join(insights) + " Final Recommendation: " + decision
 
 # ---------------- INPUT SECTION
 st.subheader("📥 Enter Business Parameters")
