@@ -65,12 +65,13 @@ st.markdown("""
 # ---------------- AUTH UI
 if "signup_success" not in st.session_state:
     st.session_state.signup_success = False
+
 menu = ["Login", "Signup"]
+
 if st.session_state.signup_success:
     choice = "Login"
 else:
     choice = st.sidebar.selectbox("Menu", menu)
-
 if choice == "Signup":
     st.subheader("📝 Create Account")
 
@@ -84,9 +85,7 @@ if choice == "Signup":
     turnover = st.number_input("Annual Turnover")
 if st.button("Signup"):
     st.write("Signup clicked")  # 👈 DEBUG LINE
-
-    if not email or not password:
-        st.error("Please fill all fields")
+         st.error("Please fill all fields")
     elif users.find_one({"email": email}):
         st.error("User already exists")
     else:
