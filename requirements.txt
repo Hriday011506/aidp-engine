@@ -5,3 +5,5 @@ scikit-learn
 matplotlib
 holidays
 google-generativeai
+pymongo
+bcrypt
