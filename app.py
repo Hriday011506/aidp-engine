@@ -19,7 +19,7 @@ except Exception:
     pass
 
 # Replace with st.secrets["MONGO_URI"] in deployment
-MONGO_URI = os.environ.get("MONGO_URI", "")  # safe default, can be empty for local debug
+MONGO_URI = os.environ.get("mongodb+srv://hridaymahajan1979_db_user:<hriday>@aidp.jz72py2.mongodb.net/?appName=aidp", "")  # safe default, can be empty for local debug
 
 db_ok = False
 users_collection = None
