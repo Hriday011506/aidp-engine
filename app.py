@@ -134,11 +134,13 @@ def convert_to_inr(price_str):
         return price_str
 def fetch_product_price(product_name):
     params = {
-        "engine": "google_shopping",
-        "q": product_name,
-        "location": "India",
-        "api_key": "bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"
-    }
+    "engine": "google_shopping",
+    "q": product_name,
+    "gl": "in",          # 🇮🇳 VERY IMPORTANT
+    "hl": "en",
+    "location": "India",
+    "api_key": st.secrets["bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"]
+}
 
     search = GoogleSearch(params)
     results = search.get_dict()
