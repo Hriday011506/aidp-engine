@@ -82,8 +82,7 @@ if choice == "Signup":
     if company:
         st.info(f"🏢 Company: {company.get('company_name', 'Not Found')}")
     turnover = st.number_input("Annual Turnover")
-
- if st.button("Signup"):
+if st.button("Signup"):
     if users.find_one({"email": email}):
         st.error("User already exists")
     else:
