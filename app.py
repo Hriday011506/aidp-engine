@@ -15,7 +15,7 @@ try:
     from pymongo import MongoClient
     import bcrypt
 except Exception:
-    # If packages are missing, show a helpful error below; the rest will still run with in-memory users.
+    # If packages are missing, show a helpful error below; the rest will still run with in-memory users_collection.
     pass
 
 # Replace with st.secrets["MONGO_URI"] in deployment
