@@ -81,7 +81,7 @@ def signup(email, password, gst, turnover):
     "password": hashed_pw,
     "gst": gst,
     "turnover": turnover
-}
+ }
 
 if db_ok and users_collection is not None:
     users_collection.insert_one(user_doc)
