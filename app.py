@@ -132,13 +132,15 @@ def convert_to_inr(price_str):
     except:
         return price_str
 
+
 from serpapi import GoogleSearch
 
 def fetch_product_price(product_name):
     params = {
         "engine": "google_shopping",
         "q": product_name,
-        "location": "India",
+        "gl": "in",   # ✅ FIXED
+        "hl": "en",
         "api_key": "bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"
     }
 
@@ -150,11 +152,12 @@ def fetch_product_price(product_name):
         if products:
             price = products[0].get("price", "Not Available")
             title = products[0].get("title", "")
+            price = convert_to_inr(price)
             return title, price
     except:
         pass
 
-    return None, "Not Available"
+    return product_name, "Not Available"   # ✅ FIXED
 # ---------------- PAGE CONFIG
 st.set_page_config(
     page_title="AIDP Engine – AI Forecasting System (debug)",
