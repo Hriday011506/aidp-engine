@@ -68,10 +68,11 @@ if "signup_success" not in st.session_state:
 
 menu = ["Login", "Signup"]
 
-if st.session_state.signup_success:
-    choice = "Login"
-else:
-    choice = st.sidebar.selectbox("Menu", menu)
+choice = st.sidebar.selectbox(
+    "Menu",
+    menu,
+    index=0 if st.session_state.signup_success else 1
+)
 if choice == "Signup":
     st.subheader("📝 Create Account")
 
