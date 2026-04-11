@@ -121,7 +121,6 @@ def fetch_gst_details(gst):
         }
     return None
 
-from serpapi import GoogleSearch
 
 def convert_to_inr(price_str):
     try:
@@ -133,28 +132,29 @@ def convert_to_inr(price_str):
     except:
         return price_str
 
+from serpapi import GoogleSearch
+
 def fetch_product_price(product_name):
     params = {
-        "engine": "google_shopping",   # 🔥 IMPORTANT (better than google)
+        "engine": "google_shopping",
         "q": product_name,
-        "gl": "in",
-        "hl": "en",
-        "api_key": "bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"
+        "location": "India",
+        "api_key": "YOUR_SERPAPI_KEY"
     }
 
     search = GoogleSearch(params)
     results = search.get_dict()
 
-    # ✅ Directly get shopping results
-    products = results.get("shopping_results", [])
+    try:
+        products = results.get("shopping_results", [])
+        if products:
+            price = products[0].get("price", "Not Available")
+            title = products[0].get("title", "")
+            return title, price
+    except:
+        pass
 
-    if products:
-        first = products[0]
-        title = first.get("title", "")
-        price = first.get("price", "Not Available")
-        return title, price
-
-    return product_name, "Not Available"
+    return None, "Not Available"
 # ---------------- PAGE CONFIG
 st.set_page_config(
     page_title="AIDP Engine – AI Forecasting System (debug)",
