@@ -139,7 +139,26 @@ def fetch_product_price(product_name):
     params = {
         "engine": "google_shopping",
         "q": product_name,
-        "gl": "in",   # ✅ FIXED
+        "gl": "in",
+        "hl": "en",
+        "api_key": "YOUR_API_KEY"
+    }
+
+    search = GoogleSearch(params)
+    results = search.get_dict()
+
+    # ✅ 1. Try shopping results
+    products = results.get("shopping_results", [])
+    if products:
+        price = products[0].get("price", "Not Available")
+        title = products[0].get("title", "")
+        return title, convert_to_inr(price)
+
+    # ✅ 2. SIMPLE FALLBACK (THIS FIXES YOUR ISSUE)
+    params = {
+        "engine": "google",
+        "q": product_name + " price India",
+        "gl": "in",
         "hl": "en",
         "api_key": "bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"
     }
@@ -147,17 +166,17 @@ def fetch_product_price(product_name):
     search = GoogleSearch(params)
     results = search.get_dict()
 
-    try:
-        products = results.get("shopping_results", [])
-        if products:
-            price = products[0].get("price", "Not Available")
-            title = products[0].get("title", "")
-            price = convert_to_inr(price)
-            return title, price
-    except:
-        pass
+    for item in results.get("organic_results", []):
+        snippet = item.get("snippet", "")
+        title = item.get("title", "")
 
-    return product_name, "Not Available"   # ✅ FIXED
+        # simple number extraction
+        import re
+        match = re.search(r"\d{2,5}", snippet)
+        if match:
+            return title, f"₹{match.group()}"
+
+    return product_name, "Not Available"
 # ---------------- PAGE CONFIG
 st.set_page_config(
     page_title="AIDP Engine – AI Forecasting System (debug)",
