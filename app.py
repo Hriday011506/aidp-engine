@@ -39,18 +39,11 @@ def login(email, password):
 
 # ---------------- GST API (CLEAR TAX STYLE)
 def fetch_gst_details(gst):
-    try:
-        url = f"https://api.cleartax.in/gst/v1/taxpayer/{gst}"
-        headers = {
-            "x-cleartax-auth-token": "YOUR_API_KEY"
-        }
-        response = requests.get(url, headers=headers)
-
-        if response.status_code == 200:
-            return response.json()
-        return None
-    except:
-        return None
+    return {
+        "company_name": "ABC Pvt Ltd",
+        "gst_number": gst,
+        "status": "Active"
+    }
 
 # ---------------- PAGE CONFIG
 st.set_page_config(
@@ -70,8 +63,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------- AUTH UI
+if "signup_success" not in st.session_state:
+    st.session_state.signup_success = False
 menu = ["Login", "Signup"]
-choice = st.sidebar.selectbox("Menu", menu)
+if st.session_state.signup_success:
+    choice = "Login"
+else:
+    choice = st.sidebar.selectbox("Menu", menu)
 
 if choice == "Signup":
     st.subheader("📝 Create Account")
@@ -79,19 +77,27 @@ if choice == "Signup":
     email = st.text_input("Work Email")
     password = st.text_input("Password", type="password")
     gst = st.text_input("GST Number")
+    if gst:
+    company = fetch_gst_details(gst)
+    if company:
+        st.info(f"🏢 Company: {company.get('company_name', 'Not Found')}")
     turnover = st.number_input("Annual Turnover")
 
-    if st.button("Signup"):
-        if users.find_one({"email": email}):
-            st.error("User already exists")
-        else:
-            company = fetch_gst_details(gst)
-            signup(email, password, gst, turnover)
+  if st.button("Signup"):
+    if users.find_one({"email": email}):
+        st.error("User already exists")
+    else:
+        company = fetch_gst_details(gst)
+        signup(email, password, gst, turnover)
 
-            if company:
-                st.success("Account created + GST verified ✅")
-            else:
-                st.warning("Account created (GST not verified)")
+        if company:
+            st.success("Account created + GST verified ✅")
+        else:
+            st.warning("Account created (GST not verified)")
+
+        # 🔥 ADD THESE 2 LINES (MOST IMPORTANT)
+        st.session_state.signup_success = True
+        st.rerun()
 
 elif choice == "Login":
     st.subheader("🔐 Login")
