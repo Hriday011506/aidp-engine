@@ -139,7 +139,7 @@ def fetch_product_price(product_name):
     "gl": "in",          # 🇮🇳 VERY IMPORTANT
     "hl": "en",
     "location": "India",
-    "api_key": st.secrets["bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"]
+    "api_key": "bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"
 }
 
     search = GoogleSearch(params)
