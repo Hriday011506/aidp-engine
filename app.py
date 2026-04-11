@@ -13,6 +13,7 @@ from sklearn.ensemble import RandomForestRegressor
 from pymongo import MongoClient
 import bcrypt
 
+# <-- Fill your real Mongo URI here or use st.secrets in deployment
 MONGO_URI = "mongodb+srv://hridaymahajan1979_db_user:<hriday>@aidp.jz72py2.mongodb.net/?appName=aidp"
 
 client = MongoClient(MONGO_URI)
@@ -37,8 +38,9 @@ def login(email, password):
         return user
     return None
 
-# ---------------- GST API (CLEAR TAX STYLE)
+# ---------------- GST API (mocked for demo)
 def fetch_gst_details(gst):
+    # demo / mock response - replace with real API call when you have API access
     return {
         "company_name": "ABC Pvt Ltd",
         "gst_number": gst,
@@ -62,17 +64,21 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- AUTH UI
+# ---------------- AUTH UI (fixed redirect logic)
 if "signup_success" not in st.session_state:
     st.session_state.signup_success = False
 
 menu = ["Login", "Signup"]
 
-choice = st.sidebar.selectbox(
-    "Menu",
-    menu,
-    index=0 if st.session_state.signup_success else 1
-)
+# create a session key for the sidebar selectbox so we can set it programmatically
+if "menu_choice" not in st.session_state:
+    # default to Signup (index 1) unless signup_success is True
+    st.session_state["menu_choice"] = "Signup" if not st.session_state.signup_success else "Login"
+
+# selectbox uses the session key. index parameter not required because we set the key value.
+choice = st.sidebar.selectbox("Menu", menu, key="menu_choice")
+
+# ---------------- SIGNUP UI
 if choice == "Signup":
     st.subheader("📝 Create Account")
 
@@ -80,7 +86,7 @@ if choice == "Signup":
     password = st.text_input("Password", type="password")
     gst = st.text_input("GST Number")
 
-    # Show company name
+    # Show company name as soon as GST is provided (demo)
     if gst:
         company = fetch_gst_details(gst)
         if company:
@@ -90,31 +96,43 @@ if choice == "Signup":
 
     if st.button("Signup"):
         try:
-            if users.find_one({"email": email}):
+            # basic validation
+            if not email or not password:
+                st.error("Please provide both email and password")
+            elif users.find_one({"email": email}):
                 st.error("User already exists")
             else:
+                # insert user
                 signup(email, password, gst, turnover)
 
                 st.success("✅ Account created successfully!")
 
+                # set both flags so the sidebar selectbox shows Login after rerun
                 st.session_state.signup_success = True
-                st.rerun()
+                st.session_state["menu_choice"] = "Login"
+
+                # rerun to force UI update / switch to Login
+                st.experimental_rerun()
 
         except Exception as e:
-               st.error(f"Error: {e}")
+            st.error(f"Error: {e}")
 
+# ---------------- LOGIN UI
 elif choice == "Login":
     st.subheader("🔐 Login")
 
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
+    email_login = st.text_input("Email", key="login_email")
+    password_login = st.text_input("Password", type="password", key="login_password")
 
     if st.button("Login"):
-        user = login(email, password)
+        user = login(email_login, password_login)
         if user:
             st.session_state.user = user
+            # reset signup_success so menu returns to normal behavior after login
+            st.session_state.signup_success = False
+            st.session_state["menu_choice"] = "Login"
             st.success("Logged in!")
-            
+
         else:
             st.error("Invalid credentials")
 
@@ -122,6 +140,8 @@ elif choice == "Login":
 if st.session_state.user:
     if st.sidebar.button("Logout"):
         st.session_state.user = None
+        # reset menu key to default
+        st.session_state["menu_choice"] = "Signup"
 
 # ---------------- MAIN APP (PROTECTED)
 if st.session_state.user:
@@ -145,7 +165,6 @@ if st.session_state.user:
     st.divider()
 
     # ---------------- YOUR ORIGINAL CODE STARTS HERE (UNCHANGED)
-
     SERPAPI_KEY = "YOUR_KEY"
 
     def get_weather(city):
