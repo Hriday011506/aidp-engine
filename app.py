@@ -19,7 +19,7 @@ except Exception:
     pass
 
 # Replace with st.secrets["MONGO_URI"] in deployment
-MONGO_URI = os.environ.get("mongodb+srv://hridaymahajan1979_db_user:<hriday>@aidp.jz72py2.mongodb.net/?appName=aidp", "")  # safe default, can be empty for local debug
+MONGO_URI = "mongodb+srv://hridaymahajan1979_db_user:<hriday>@aidp.jz72py2.mongodb.net/?appName=aidp"
 
 db_ok = False
 users_collection = None
@@ -64,10 +64,8 @@ def _db_find_user(email):
         return None
 
 def _db_insert_user(doc):
-    if db_ok and users_collection is not None:
-        users_collection.insert_one(doc)
-    else:
-        _in_memory_users.append(doc)
+    global _in_memory_users
+    _in_memory_users.append(doc)
 
 def signup(email, password, gst, turnover):
     if have_bcrypt:
