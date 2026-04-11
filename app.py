@@ -134,37 +134,47 @@ def convert_to_inr(price_str):
         return price_str
 def fetch_product_price(product_name):
     params = {
-    "engine": "google_shopping",
-    "q": product_name,
-    "gl": "in",          # 🇮🇳 VERY IMPORTANT
-    "hl": "en",
-    "location": "India",
-    "api_key": "bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"
-}
+        "engine": "google",
+        "q": product_name + " price India",
+        "gl": "in",
+        "hl": "en",
+        "api_key": "bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"
+    }
 
     search = GoogleSearch(params)
     results = search.get_dict()
 
-    try:
-        products = results.get("shopping_results", [])
-        for item in products:
-            price = item.get("price")
-            title = item.get("title", "")
-            if price:
-               price = convert_to_inr(price)
-               return title, price
-    except:
-        pass
+    # ✅ 1. Try shopping results
+    products = results.get("shopping_results", [])
+    for item in products:
+        price = item.get("price")
+        title = item.get("title", "")
+        if price:
+            price = convert_to_inr(price)
+            return title, price
 
-    return None, "Not Available"
+    # ✅ 2. Try inline shopping results
+    products = results.get("inline_shopping_results", [])
+    for item in products:
+        price = item.get("price")
+        title = item.get("title", "")
+        if price:
+            price = convert_to_inr(price)
+            return title, price
 
-product = st.text_input("Enter Product Name")
+    # ✅ 3. Try organic results (fallback)
+    organic = results.get("organic_results", [])
+    for item in organic:
+        snippet = item.get("snippet", "")
+        title = item.get("title", "")
 
-if product:
-    title, price = fetch_product_price(product)
+        # try extracting ₹ price from text
+        import re
+        match = re.search(r"₹\s?\d+[,\d]*", snippet)
+        if match:
+            return title, match.group()
 
-    st.session_state.market_price = price  
-
+    return product_name, "Not Available"
 # ---------------- PAGE CONFIG
 st.set_page_config(
     page_title="AIDP Engine – AI Forecasting System (debug)",
