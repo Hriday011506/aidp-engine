@@ -76,18 +76,17 @@ def signup(email, password, gst, turnover):
 
     hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 
-   user_doc = {
-    "email": email.lower().strip(),
-    "password": hashed_pw,
-    "gst": gst,
-    "turnover": turnover
- }
+    user_doc = {
+        "email": email.lower().strip(),
+        "password": hashed_pw,
+        "gst": gst,
+        "turnover": turnover
+    }
 
-if db_ok and users_collection is not None:
-    users_collection.insert_one(user_doc)
-else:
-    _db_insert_user(user_doc)
-    _db_insert_user(user_doc)
+    if db_ok and users_collection is not None:
+        users_collection.insert_one(user_doc)
+    else:
+        _db_insert_user(user_doc)
 
 def login(email, password):
     user = _db_find_user(email.lower().strip())
