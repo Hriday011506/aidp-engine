@@ -31,7 +31,8 @@ if MONGO_URI:
         client.server_info()
 
         db = client["aidp_db"]
-        users_collection = db["users"]   # ✅ MUST BE HERE
+        users_collection = db["users"] 
+        users = users_collection# 
 
         db_ok = True
 
@@ -75,36 +76,40 @@ def signup(email, password, gst, turnover):
 
     hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 
-    users.insert_one({
-        "email": email.lower().strip(),
-        "password": hashed_pw,
-        "gst": gst,
-        "turnover": turnover
-    })
+   user_doc = {
+    "email": email.lower().strip(),
+    "password": hashed_pw,
+    "gst": gst,
+    "turnover": turnover
+}
+
+if db_ok and users_collection is not None:
+    users_collection.insert_one(user_doc)
+else:
+    _db_insert_user(user_doc)
     _db_insert_user(user_doc)
 
 def login(email, password):
-    user = users.find_one({"email": email.lower().strip()})
+    user = _db_find_user(email.lower().strip())
 
-    if user and bcrypt.checkpw(password.encode(), user["password"]):
-        return user
-    return None
+    if not user:
+        return None
+
     stored_pw = user.get("password")
+
     if have_bcrypt and isinstance(stored_pw, (bytes, bytearray)):
         try:
             if _bcrypt.checkpw(password.encode(), stored_pw):
                 return user
             else:
                 return None
-        except Exception:
+        except:
             return None
     else:
-        # fallback plain-text compare (local demo)
         if stored_pw == password:
             return user
         else:
             return None
-
 # ---------------- GST API (mocked for demo)
 def fetch_gst_details(gst):
     # demo / mock response - replace with real API call when you have API access
@@ -148,35 +153,31 @@ if choice == "Signup":
     password = st.text_input("Password", type="password", key="signup_password")
     gst = st.text_input("GST Number", key="signup_gst")
 
-    # Show company name when GST provided (demo)
     if gst:
         company = fetch_gst_details(gst)
         if company:
             st.info(f"🏢 Company: {company.get('company_name', 'Not Found')}")
 
-turnover = st.number_input("Annual Turnover", key="signup_turnover")
+    turnover = st.number_input("Annual Turnover", key="signup_turnover")
 
-if st.button("Signup"):
-    try:
-        email_clean = email.lower().strip()
+    if st.button("Signup"):
+        try:
+            email_clean = email.lower().strip()
 
-        if users.find_one({"email": email_clean}):
-            st.error("User already exists")
-        else:
-            signup(email_clean, password, gst, turnover)
+            if _db_find_user(email_clean):
+                st.error("User already exists")
+            else:
+                signup(email_clean, password, gst, turnover)
 
-            st.success("✅ Account created successfully!")
+                st.success("✅ Account created successfully!")
 
-            # 🔥 redirect logic
-            st.session_state.signup_success = True
-            st.session_state["menu_choice"] = "Login"
+                st.session_state.signup_success = True
+                st.session_state["menu_choice"] = "Login"
 
-            st.rerun()
+                st.rerun()
 
-    except Exception as e:
-        st.error(f"Error: {e}")
-    except Exception as e:
-        st.error(f"Error: {e}")
+        except Exception as e:
+            st.error(f"Error: {e}")
 
 # ---------- LOGIN FLOW
 elif choice == "Login":
