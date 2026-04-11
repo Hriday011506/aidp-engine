@@ -22,7 +22,7 @@ except Exception:
 MONGO_URI = "mongodb+srv://hridaymahajan1979_db_user:hriday@aidp.jz72py2.mongodb.net/?retryWrites=true&w=majority"
 
 db_ok = False
-users_collection = db["users"]
+
 _in_memory_users = []  # fallback for testing if Mongo not available
 
 if MONGO_URI:
