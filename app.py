@@ -68,23 +68,24 @@ def _db_insert_user(doc):
     _in_memory_users.append(doc)
 
 def signup(email, password, gst, turnover):
-    if have_bcrypt:
-        hashed_pw = _bcrypt.hashpw(password.encode(), _bcrypt.gensalt())
-        pw_to_store = hashed_pw
-    else:
-        pw_to_store = password  # local demo ONLY
-    user_doc = {
-        "email": email,
-        "password": pw_to_store,
+    import bcrypt
+
+    hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+
+    users.insert_one({
+        "email": email.lower().strip(),
+        "password": hashed_pw,
         "gst": gst,
         "turnover": turnover
-    }
+    })
     _db_insert_user(user_doc)
 
 def login(email, password):
-    user = _db_find_user(email)
-    if not user:
-        return None
+    user = users.find_one({"email": email.lower().strip()})
+
+    if user and bcrypt.checkpw(password.encode(), user["password"]):
+        return user
+    return None
     stored_pw = user.get("password")
     if have_bcrypt and isinstance(stored_pw, (bytes, bytearray)):
         try:
@@ -160,27 +161,25 @@ if choice == "Signup":
 
     turnover = st.number_input("Annual Turnover", key="signup_turnover")
 
-    if st.button("Signup"):
-        # debug line to show click
-        st.write("Signup clicked")
-        try:
-            if not email or not password:
-                st.error("Please provide both email and password")
-            elif _db_find_user(email):
-                st.error("User already exists")
-            else:
-                signup(email, password, gst, turnover)
-                st.success("✅ Account created successfully!")
+   if st.button("Signup"):
+    try:
+        email_clean = email.lower().strip()
 
-                # programmatically set the sidebar to Login and mark signup done
-                st.session_state.signup_success = True
-                st.session_state["menu_choice"] = "Login"
+        if users.find_one({"email": email_clean}):
+            st.error("User already exists")
+        else:
+            signup(email_clean, password, gst, turnover)
 
-                # show debug before rerun
-                st.write("Setting menu_choice to Login and rerunning...")
-                st.experimental_rerun()
-        except Exception as e:
-            st.error(f"Error during signup: {e}")
+            st.success("✅ Account created successfully!")
+
+            # 🔥 THIS MAKES REDIRECT WORK
+            st.session_state.signup_success = True
+            st.session_state["menu_choice"] = "Login"
+
+            st.rerun()
+
+    except Exception as e:
+        st.error(f"Error: {e}")
 
 # ---------- LOGIN FLOW
 elif choice == "Login":
