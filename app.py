@@ -84,19 +84,19 @@ if choice == "Signup":
             st.info(f"🏢 Company: {company.get('company_name', 'Not Found')}")
     turnover = st.number_input("Annual Turnover")
 if st.button("Signup"):
-    st.write("Signup clicked")  # 👈 DEBUG LINE
-         st.error("Please fill all fields")
-    elif users.find_one({"email": email}):
+    st.write("Signup clicked")
+
+    if users.find_one({"email": email}):
         st.error("User already exists")
     else:
         company = fetch_gst_details(gst)
 
         signup(email, password, gst, turnover)
 
-        st.success("Account created successfully ✅")
+        st.success("✅ Account created successfully!")
 
         st.session_state.signup_success = True
-        st.rerun()
+        st.experimental_rerun()
 elif choice == "Login":
     st.subheader("🔐 Login")
 
