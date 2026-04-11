@@ -159,9 +159,9 @@ if choice == "Signup":
         if company:
             st.info(f"🏢 Company: {company.get('company_name', 'Not Found')}")
 
-    turnover = st.number_input("Annual Turnover", key="signup_turnover")
+   turnover = st.number_input("Annual Turnover", key="signup_turnover")
 
-   if st.button("Signup"):
+if st.button("Signup"):
     try:
         email_clean = email.lower().strip()
 
@@ -172,12 +172,14 @@ if choice == "Signup":
 
             st.success("✅ Account created successfully!")
 
-            # 🔥 THIS MAKES REDIRECT WORK
+            # 🔥 redirect logic
             st.session_state.signup_success = True
             st.session_state["menu_choice"] = "Login"
 
             st.rerun()
 
+    except Exception as e:
+        st.error(f"Error: {e}")
     except Exception as e:
         st.error(f"Error: {e}")
 
