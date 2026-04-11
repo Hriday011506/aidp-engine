@@ -131,14 +131,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- DEBUG PANEL (top-left)
-with st.expander("🔧 Debug (session & DB status) — open during testing", expanded=True):
-    st.write("DB connected:", db_ok)
-    st.write("Have bcrypt:", have_bcrypt)
-    st.write("Session state keys:", dict(st.session_state))
-    st.write("menu_choice (session):", st.session_state.get("menu_choice"))
-    st.write("In-memory users (for fallback):", _in_memory_users[:5])
-
 # ---------------- AUTH UI (robust)
 menu = ["Login", "Signup"]
 
