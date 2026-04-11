@@ -78,9 +78,9 @@ if choice == "Signup":
     password = st.text_input("Password", type="password")
     gst = st.text_input("GST Number")
     if gst:
-    company = fetch_gst_details(gst)
-    if company:
-        st.info(f"🏢 Company: {company.get('company_name', 'Not Found')}")
+        company = fetch_gst_details(gst)
+        if company:
+            st.info(f"🏢 Company: {company.get('company_name', 'Not Found')}")
     turnover = st.number_input("Annual Turnover")
 if st.button("Signup"):
     if users.find_one({"email": email}):
@@ -96,6 +96,7 @@ if st.button("Signup"):
 
         st.session_state.signup_success = True
         st.rerun()
+        
 elif choice == "Login":
     st.subheader("🔐 Login")
 
