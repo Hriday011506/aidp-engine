@@ -121,6 +121,42 @@ def fetch_gst_details(gst):
         }
     return None
 
+from serpapi import GoogleSearch
+
+def fetch_product_price(product_name):
+    params = {
+        "engine": "google_shopping",
+        "q": product_name,
+        "location": "India",
+        "api_key": "bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"
+    }
+
+    search = GoogleSearch(params)
+    results = search.get_dict()
+
+    try:
+        products = results.get("shopping_results", [])
+        for item in products:
+            price = item.get("price")
+            title = item.get("title", "")
+            if price:   # pick first valid price
+               return title, price
+    except:
+        pass
+
+    return None, "Not Available"
+
+product = st.text_input("Enter Product Name")
+
+if product:
+    title, price = fetch_product_price(product)
+
+    if price != "Not Available":
+        st.success(f"💰 Price: {price}")
+        st.info(f"📦 Product: {title}")
+    else:
+        st.warning("Market price not available")
+
 # ---------------- PAGE CONFIG
 st.set_page_config(
     page_title="AIDP Engine – AI Forecasting System (debug)",
