@@ -83,7 +83,7 @@ if choice == "Signup":
         st.info(f"🏢 Company: {company.get('company_name', 'Not Found')}")
     turnover = st.number_input("Annual Turnover")
 
-  if st.button("Signup"):
+ if st.button("Signup"):
     if users.find_one({"email": email}):
         st.error("User already exists")
     else:
@@ -95,10 +95,8 @@ if choice == "Signup":
         else:
             st.warning("Account created (GST not verified)")
 
-        # 🔥 ADD THESE 2 LINES (MOST IMPORTANT)
         st.session_state.signup_success = True
         st.rerun()
-
 elif choice == "Login":
     st.subheader("🔐 Login")
 
