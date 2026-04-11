@@ -123,6 +123,15 @@ def fetch_gst_details(gst):
 
 from serpapi import GoogleSearch
 
+def convert_to_inr(price_str):
+    try:
+        if "$" in price_str:
+            price = float(price_str.replace("$", "").replace(",", ""))
+            inr = price * 83
+            return f"₹{round(inr, 2)}"
+        return price_str
+    except:
+        return price_str
 def fetch_product_price(product_name):
     params = {
         "engine": "google_shopping",
@@ -139,7 +148,8 @@ def fetch_product_price(product_name):
         for item in products:
             price = item.get("price")
             title = item.get("title", "")
-            if price:   # pick first valid price
+            if price:
+               price = convert_to_inr(price)
                return title, price
     except:
         pass
@@ -151,11 +161,7 @@ product = st.text_input("Enter Product Name")
 if product:
     title, price = fetch_product_price(product)
 
-    if price != "Not Available":
-        st.success(f"💰 Price: {price}")
-        st.info(f"📦 Product: {title}")
-    else:
-        st.warning("Market price not available")
+    st.session_state.market_price = price  
 
 # ---------------- PAGE CONFIG
 st.set_page_config(
@@ -352,7 +358,8 @@ if st.session_state.user:
             col1, col2, col3 = st.columns(3)
             col1.metric("📦 Predicted Sales", f"{int(predicted_sales)} Units")
             col2.metric("📈 Inventory", f"{int(recommended_inventory)} Units")
-            col3.metric("💰 Market Price", "Not available")
+            market_price = st.session_state.get("market_price", "Not available")
+            col3.metric("💰 Market Price", market_price)
             chart_data = pd.DataFrame({
                 "Category": ["Predicted Sales", "Inventory"],
                 "Value": [predicted_sales, recommended_inventory]
