@@ -138,39 +138,44 @@ def fetch_product_price(product_name):
         "q": product_name + " price India",
         "gl": "in",
         "hl": "en",
-        "api_key": "bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"
+        "api_key": "YOUR_API_KEY"
     }
 
     search = GoogleSearch(params)
     results = search.get_dict()
 
-    # ✅ 1. Try shopping results
+    # 1. shopping results
     products = results.get("shopping_results", [])
     for item in products:
         price = item.get("price")
         title = item.get("title", "")
         if price:
-            price = convert_to_inr(price)
+            try:
+                price = convert_to_inr(price)
+            except:
+                pass
             return title, price
 
-    # ✅ 2. Try inline shopping results
+    # 2. inline shopping
     products = results.get("inline_shopping_results", [])
     for item in products:
         price = item.get("price")
         title = item.get("title", "")
         if price:
-            price = convert_to_inr(price)
+            try:
+                price = convert_to_inr(price)
+            except:
+                pass
             return title, price
 
-    # ✅ 3. Try organic results (fallback)
+    # 3. fallback (IMPORTANT FIX HERE)
+    import re
     organic = results.get("organic_results", [])
     for item in organic:
         snippet = item.get("snippet", "")
         title = item.get("title", "")
 
-        # try extracting ₹ price from text
-        import re
-        match = re.search(r"₹\s?\d+[,\d]*", snippet)
+        match = re.search(r"₹\s?\d[\d,]*", snippet)  # ✅ FIXED
         if match:
             return title, match.group()
 
