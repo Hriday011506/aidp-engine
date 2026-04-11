@@ -19,7 +19,7 @@ except Exception:
     pass
 
 # Replace with st.secrets["MONGO_URI"] in deployment
-MONGO_URI = "mongodb+srv://hridaymahajan1979_db_user:<hriday>@aidp.jz72py2.mongodb.net/?appName=aidp"
+MONGO_URI = "mongodb+srv://hridaymahajan1979_db_user:hriday@aidp.jz72py2.mongodb.net/?retryWrites=true&w=majority"
 
 db_ok = False
 users_collection = None
