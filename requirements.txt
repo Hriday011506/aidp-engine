@@ -7,3 +7,4 @@ holidays
 google-generativeai
 pymongo
 bcrypt
+google-search-results
