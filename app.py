@@ -159,7 +159,7 @@ if choice == "Signup":
         if company:
             st.info(f"🏢 Company: {company.get('company_name', 'Not Found')}")
 
-   turnover = st.number_input("Annual Turnover", key="signup_turnover")
+turnover = st.number_input("Annual Turnover", key="signup_turnover")
 
 if st.button("Signup"):
     try:
