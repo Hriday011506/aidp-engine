@@ -142,8 +142,7 @@ st.markdown("""
 menu = ["Login", "Signup"]
 
 # use the session key for the selectbox so we can set it programmatically
-choice = st.sidebar.selectbox("Menu", menu, key="menu_choice")
-
+choice = st.sidebar.selectbox("Menu", menu)
 # ---------- SIGNUP FLOW
 if choice == "Signup":
     st.subheader("📝 Create Account")
