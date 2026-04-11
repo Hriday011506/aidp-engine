@@ -78,25 +78,30 @@ if choice == "Signup":
     email = st.text_input("Work Email")
     password = st.text_input("Password", type="password")
     gst = st.text_input("GST Number")
+
+    # Show company name
     if gst:
         company = fetch_gst_details(gst)
         if company:
             st.info(f"🏢 Company: {company.get('company_name', 'Not Found')}")
+
     turnover = st.number_input("Annual Turnover")
-if st.button("Signup"):
-    st.write("Signup clicked")
 
-    if users.find_one({"email": email}):
-        st.error("User already exists")
-    else:
-        company = fetch_gst_details(gst)
+    if st.button("Signup"):
+        try:
+            if users.find_one({"email": email}):
+                st.error("User already exists")
+            else:
+                signup(email, password, gst, turnover)
 
-        signup(email, password, gst, turnover)
+                st.success("✅ Account created successfully!")
 
-        st.success("✅ Account created successfully!")
+                st.session_state.signup_success = True
+                st.rerun()
 
-        st.session_state.signup_success = True
-        st.experimental_rerun()
+        except Exception as e:
+               st.error(f"Error: {e}")
+
 elif choice == "Login":
     st.subheader("🔐 Login")
 
@@ -108,6 +113,7 @@ elif choice == "Login":
         if user:
             st.session_state.user = user
             st.success("Logged in!")
+            
         else:
             st.error("Invalid credentials")
 
