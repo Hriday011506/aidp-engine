@@ -28,10 +28,13 @@ _in_memory_users = []  # fallback for testing if Mongo not available
 if MONGO_URI:
     try:
         client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=4000)
-        client.server_info()  # will throw if cannot connect
+        client.server_info()
+
         db = client["aidp_db"]
-        users_collection = db["users"]
+        users_collection = db["users"]   # ✅ MUST BE HERE
+
         db_ok = True
+
     except Exception as e:
         db_ok = False
         users_collection = None
