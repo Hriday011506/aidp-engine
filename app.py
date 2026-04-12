@@ -141,7 +141,7 @@ def fetch_product_price(product_name):
         "q": product_name,
         "gl": "in",
         "hl": "en",
-        "api_key": "YOUR_API_KEY"
+        "api_key": "bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"
     }
 
     search = GoogleSearch(params)
