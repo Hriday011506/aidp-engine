@@ -449,10 +449,12 @@ with st.sidebar:
     st.markdown("</div>", unsafe_allow_html=True)
 
     # ---------------- DATA ----------------
-    holiday = get_holidays(year, month)
-    temp = get_weather(city)
-    viral = simulate_viral_score(product)
-    price = fetch_product_price(product)
+   month_name = st.session_state.get("month_name", "January")
+   month = list(calendar.month_name).index(month_name)
+   holiday = get_holidays(year, month)
+   temp = get_weather(city)
+   viral = simulate_viral_score(product)
+   price = fetch_product_price(product)
 
     # ---------------- KPI CARDS ----------------
     st.subheader("📊 Market Intelligence")
