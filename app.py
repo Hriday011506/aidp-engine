@@ -315,25 +315,24 @@ col1.write(f"💰 Turnover: {user.get('turnover')}")
 st.markdown("</div>", unsafe_allow_html=True)
 if st.session_state.page == "dashboard" and st.session_state.user:
 
-    st.markdown("<h1>📊 AI Intelligence Dashboard</h1>", unsafe_allow_html=True)
+    user = st.session_state.user
 
-    # INPUT CARD
+    # ---------------- BUSINESS PROFILE ----------------
     st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-    st.subheader("📥 Business Inputs")
+    st.subheader("🏢 Business Profile")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
 
-    with col1:
-        product = st.text_input("📦 Product", "Wheat Flour", key="product")
+    col1.write(f"📧 Email: {user.get('email', 'N/A')}")
+    col2.write(f"🏢 GST: {user.get('gst', 'N/A')}")
 
-    with col2:
-        city = st.text_input("📍 City", "Jaipur", key="city")
-
-    with col3:
-        month_name = st.selectbox("📅 Month", list(calendar.month_name)[1:], key="month")
+    col1.write(f"💰 Turnover: {user.get('turnover', 'N/A')}")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+    # ---------------- REST OF DASHBOARD ----------------
+    st.markdown("<h1>📊 AI Intelligence Dashboard</h1>", unsafe_allow_html=True)
 
     month = list(calendar.month_name).index(month_name)
     year = 2025
