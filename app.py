@@ -321,9 +321,9 @@ if st.session_state.page == "dashboard" and st.session_state.user:
     st.markdown("<h1>📊 AI Intelligence Dashboard</h1>", unsafe_allow_html=True)
 
     # ⚠️ FIX: Ensure variables exist before use
-   product = st.session_state.get("product", "Wheat Flour")
-   city = st.session_state.get("city", "Jaipur")
-   month_name = st.session_state.get("month_name", "January")
+    product = st.session_state.get("product", "Wheat Flour")
+    city = st.session_state.get("city", "Jaipur")
+    month_name = st.session_state.get("month_name", "January")
 
     month = list(calendar.month_name).index(month_name)
     year = 2025
