@@ -297,29 +297,15 @@ elif st.session_state.page == "signup":
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
-# 📊 DASHBOARD
+# 📊 DASHBOARD (FIXED ONLY)
 # ==============================
-st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-st.subheader("🏢 Business Profile")
-
-user = st.session_state.user
-
-col1, col2 = st.columns(2)
-
-col1.write(f" Email: {user.get('email')}")
-col2.write(f"🏢 GST: {user.get('gst')}")
-
-col1.write(f"💰 Turnover: {user.get('turnover')}")
-
-st.markdown("</div>", unsafe_allow_html=True)
 if st.session_state.page == "dashboard" and st.session_state.user:
 
     user = st.session_state.user
 
     # ---------------- BUSINESS PROFILE ----------------
     st.markdown("<div class='card'>", unsafe_allow_html=True)
-
     st.subheader("🏢 Business Profile")
 
     col1, col2 = st.columns(2)
@@ -331,8 +317,13 @@ if st.session_state.page == "dashboard" and st.session_state.user:
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # ---------------- REST OF DASHBOARD ----------------
+    # ---------------- MAIN DASHBOARD ----------------
     st.markdown("<h1>📊 AI Intelligence Dashboard</h1>", unsafe_allow_html=True)
+
+    # ⚠️ FIX: Ensure variables exist before use
+    product = "Wheat Flour"
+    city = "Jaipur"
+    month_name = "January"
 
     month = list(calendar.month_name).index(month_name)
     year = 2025
@@ -352,56 +343,55 @@ if st.session_state.page == "dashboard" and st.session_state.user:
     k3.markdown(f"<div class='kpi'><h4>🔥 Trend</h4><h2>{viral}</h2></div>", unsafe_allow_html=True)
     k4.markdown(f"<div class='kpi'><h4>💰 Price</h4><h2>{price}</h2></div>", unsafe_allow_html=True)
 
-# ---------------- PREDICT ----------------
-if st.button("🚀 Predict Demand", key="predict_btn_dashboard"):
+    # ---------------- PREDICT ----------------
+    if st.button("🚀 Predict Demand", key="predict_btn_dashboard"):
 
-    input_df = pd.DataFrame({
-        "holiday_count": [holiday],
-        "avg_temp": [temp],
-        "viral_score": [viral]
-    })
+        input_df = pd.DataFrame({
+            "holiday_count": [holiday],
+            "avg_temp": [temp],
+            "viral_score": [viral]
+        })
 
-    pred = model.predict(input_df)[0]
-    inventory = pred * 1.1
+        pred = model.predict(input_df)[0]
+        inventory = pred * 1.1
 
-    # -------- RESULT CARD --------
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-    st.subheader("📈 AI Forecast")
+        st.subheader("📈 AI Forecast")
 
-    c1, c2 = st.columns(2)
-    c1.metric("📦 Sales", int(pred))
-    c2.metric("📊 Inventory", int(inventory))
+        c1, c2 = st.columns(2)
+        c1.metric("📦 Sales", int(pred))
+        c2.metric("📊 Inventory", int(inventory))
 
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    # -------- GRAPH --------
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
+        # GRAPH
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-    st.subheader("📊 Demand Analysis")
+        st.subheader("📊 Demand Analysis")
 
-    chart_df = pd.DataFrame({
-        "Type": ["Sales", "Inventory"],
-        "Value": [pred, inventory]
-    })
+        chart_df = pd.DataFrame({
+            "Type": ["Sales", "Inventory"],
+            "Value": [pred, inventory]
+        })
 
-    st.bar_chart(chart_df.set_index("Type"))
+        st.bar_chart(chart_df.set_index("Type"))
 
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    # -------- INSIGHTS --------
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
+        # INSIGHTS
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-    st.subheader("🧠 AI Insights")
+        st.subheader("🧠 AI Insights")
 
-    if viral > 70:
-        st.success("🔥 Trending product detected — high demand expected.")
-    elif holiday > 6:
-        st.info("📅 Seasonal demand increase expected.")
-    else:
-        st.warning("⚖️ Stable market demand.")
+        if viral > 70:
+            st.success("🔥 Trending product detected — high demand expected.")
+        elif holiday > 6:
+            st.info("📅 Seasonal demand increase expected.")
+        else:
+            st.warning("⚖️ Stable market demand.")
 
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
     # Logout button
 col1, col2 = st.columns([8,1])
 with col2:
