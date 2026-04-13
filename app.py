@@ -434,7 +434,7 @@ with st.sidebar:
     st.divider()
 
     # ---------------- PREDICTION ----------------
-    if st.button("🚀 Predict Demand", key="predict_btn"):
+    if st.button("🚀 Predict Demand", key="predict_btn_main")
 
         input_df = pd.DataFrame({
             "holiday_count":[holiday],
