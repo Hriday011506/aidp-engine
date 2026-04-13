@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -365,9 +366,14 @@ if st.session_state.page == "dashboard" and st.session_state.user:
             st.session_state.page = "welcome"
 
     st.divider()
-    with st.sidebar:
+   # ==============================
+# 📌 SIDEBAR
+# ==============================
+
+with st.sidebar:
     st.markdown("## 🚀 AIDP")
     st.markdown("---")
+
     st.markdown("### Navigation")
 
     page = st.radio(
