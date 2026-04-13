@@ -310,7 +310,7 @@ if st.session_state.page == "dashboard" and st.session_state.user:
     k4.markdown(f"<div class='kpi'><h4>💰 Price</h4><h2>{price}</h2></div>", unsafe_allow_html=True)
 
     # PREDICT
-    if st.button("🚀 Run AI Prediction", key="predict_btn"):
+    if st.button("🚀 Run AI Prediction", key="predict_btn")
 
         input_df = pd.DataFrame({
             "holiday_count":[holiday],
