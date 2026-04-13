@@ -314,7 +314,7 @@ elif st.session_state.page == "dashboard" and st.session_state.user:
     st.divider()
 
     # ---------------- PREDICTION ----------------
-    if st.button("🚀 Predict Demand"):
+    if st.button("🚀 Predict Demand", key="predict_btn"):
 
         input_df = pd.DataFrame({
             "holiday_count":[holiday],
