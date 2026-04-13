@@ -17,7 +17,7 @@ MONGO_URI = "mongodb+srv://hridaymahajan1979_db_user:hriday@aidp.jz72py2.mongodb
 SERPAPI_KEY = "bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"
 
 # ==============================
-# 🗄️ DB
+# 🗄️ DATABASE
 # ==============================
 client = MongoClient(MONGO_URI)
 db = client["aidp_db"]
@@ -34,14 +34,16 @@ if "page" not in st.session_state:
 # ==============================
 # 🎨 UI STYLE
 # ==============================
+st.set_page_config(page_title="AIDP Engine", layout="wide")
+
 st.markdown("""
 <style>
 .stApp {
     background-color: #0e1117;
     color: white;
 }
-button {
-    border-radius: 10px !important;
+h1, h2, h3 {
+    color: #ffffff;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -51,10 +53,7 @@ button {
 # ==============================
 def signup(email, password):
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-    users_collection.insert_one({
-        "email": email,
-        "password": hashed
-    })
+    users_collection.insert_one({"email": email, "password": hashed})
 
 def login(email, password):
     user = users_collection.find_one({"email": email})
@@ -63,36 +62,43 @@ def login(email, password):
     return None
 
 # ==============================
-# 💰 PRICE FIXED
+# 💰 PRICE FUNCTION (IMPROVED)
 # ==============================
 def fetch_product_price(product_name):
     try:
         params = {
             "engine": "google_shopping",
             "q": product_name,
+            "gl": "in",
+            "hl": "en",
             "api_key": SERPAPI_KEY
         }
         results = GoogleSearch(params).get_dict()
         products = results.get("shopping_results", [])
 
         if products:
-            price = products[0].get("price") or products[0].get("extracted_price")
+            p = products[0]
+            price = p.get("price") or p.get("extracted_price")
             if price:
                 return f"₹{price}"
     except:
         pass
 
-    return "₹ Not Available"
+    return "₹ Data unavailable"
 
 # ==============================
-# 🌦️ WEATHER
+# 🌦 WEATHER
 # ==============================
 def get_weather(city):
     try:
         geo = requests.get(f"https://geocoding-api.open-meteo.com/v1/search?name={city}").json()
         lat = geo["results"][0]["latitude"]
         lon = geo["results"][0]["longitude"]
-        weather = requests.get(f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true").json()
+
+        weather = requests.get(
+            f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
+        ).json()
+
         return weather["current_weather"]["temperature"]
     except:
         return 25
@@ -103,6 +109,7 @@ def get_weather(city):
 def get_holidays(year, month):
     india_holidays = holidays.India(years=year)
     total_days = calendar.monthrange(year, month)[1]
+
     return sum(
         1 for d in range(1, total_days + 1)
         if datetime.date(year, month, d).weekday() >= 5
@@ -110,7 +117,7 @@ def get_holidays(year, month):
     )
 
 # ==============================
-# 🔥 VIRAL
+# 🔥 VIRAL SCORE
 # ==============================
 def simulate_viral_score(product):
     np.random.seed(abs(hash(product)) % 100)
@@ -148,9 +155,9 @@ if st.session_state.page == "welcome":
     col1, col2, col3 = st.columns([1,2,1])
 
     with col2:
-        if st.button("Login", use_container_width=True):
+        if st.button("🔐 Login", use_container_width=True):
             st.session_state.page = "login"
-        if st.button("Signup", use_container_width=True):
+        if st.button("📝 Signup", use_container_width=True):
             st.session_state.page = "signup"
 
 # ==============================
@@ -159,6 +166,7 @@ if st.session_state.page == "welcome":
 elif st.session_state.page == "login":
 
     st.title("🔐 Login")
+
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
@@ -176,12 +184,13 @@ elif st.session_state.page == "login":
 elif st.session_state.page == "signup":
 
     st.title("📝 Signup")
+
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
     if st.button("Create Account"):
         signup(email, password)
-        st.success("Account created")
+        st.success("Account created successfully")
         st.session_state.page = "login"
 
 # ==============================
@@ -189,23 +198,51 @@ elif st.session_state.page == "signup":
 # ==============================
 elif st.session_state.page == "dashboard" and st.session_state.user:
 
-    st.title("📊 Dashboard")
+    st.title("📊 AIDP Intelligence Dashboard")
+    st.caption("AI-powered retail insights")
 
     if st.button("Logout"):
         st.session_state.user = None
         st.session_state.page = "welcome"
 
-    product = st.text_input("Product", "Wheat Flour")
-    city = st.text_input("City", "Jaipur")
+    st.divider()
 
+    # INPUTS
+    st.subheader("📥 Inputs")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        product = st.text_input("Product", "Wheat Flour")
+
+    with col2:
+        city = st.text_input("City", "Jaipur")
+
+    with col3:
+        month_name = st.selectbox("Month", list(calendar.month_name)[1:])
+
+    month = list(calendar.month_name).index(month_name)
     year = 2025
-    month = 5
 
+    # FETCH DATA
     holiday = get_holidays(year, month)
     temp = get_weather(city)
     viral = simulate_viral_score(product)
+    price = fetch_product_price(product)
 
-    if st.button("Predict"):
+    # KPI
+    st.subheader("📊 Market Indicators")
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("🌡 Temperature", f"{temp:.1f} °C")
+    k2.metric("📅 Holidays", holiday)
+    k3.metric("🔥 Trend Score", viral)
+    k4.metric("💰 Market Price", price)
+
+    st.divider()
+
+    # PREDICT
+    if st.button("🚀 Predict Demand"):
 
         df = pd.DataFrame({
             "holiday_count":[holiday],
@@ -214,26 +251,37 @@ elif st.session_state.page == "dashboard" and st.session_state.user:
         })
 
         pred = model.predict(df)[0]
-        price = fetch_product_price(product)
+        inventory = pred * 1.1
 
-        st.subheader("Results")
+        st.subheader("📈 Results")
 
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Sales", int(pred))
-        col2.metric("Inventory", int(pred*1.1))
-        col3.metric("Price", price)
+        r1, r2 = st.columns(2)
+        r1.metric("📦 Sales", int(pred))
+        r2.metric("📊 Inventory", int(inventory))
 
-        # ✅ Better readable charts
+        # Charts
+        st.subheader("📊 Sales vs Inventory")
+
         chart_df = pd.DataFrame({
             "Type":["Sales","Inventory"],
-            "Value":[pred, pred*1.1]
+            "Value":[pred, inventory]
         })
-
         st.bar_chart(chart_df.set_index("Type"))
+
+        st.subheader("📈 Demand Trend")
 
         trend = pd.DataFrame({
             "Month": list(range(1,13)),
             "Demand": np.linspace(200, pred, 12)
         })
-
         st.line_chart(trend.set_index("Month"))
+
+        # Insights
+        st.subheader("🧠 Insights")
+
+        if viral > 70:
+            st.success("🔥 High demand expected")
+        elif holiday > 6:
+            st.info("📅 Demand may increase due to holidays")
+        else:
+            st.warning("⚖️ Stable demand expected")
