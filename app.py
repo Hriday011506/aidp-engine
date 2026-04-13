@@ -331,33 +331,34 @@ if st.button("🚀 Predict Demand", key="predict_btn_main"):
     c2.metric("📊 Inventory", int(inventory))
 
     st.markdown("</div>", unsafe_allow_html=True)
-        # GRAPH
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        # ---------------- GRAPH ----------------
+st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-        st.subheader("📊 Demand Analysis")
+st.subheader("📊 Demand Analysis")
 
-        chart_df = pd.DataFrame({
-            "Type":["Sales","Inventory"],
-            "Value":[pred, inventory]
-        })
+chart_df = pd.DataFrame({
+    "Type": ["Sales", "Inventory"],
+    "Value": [pred, inventory]
+})
 
-        st.bar_chart(chart_df.set_index("Type"))
+st.bar_chart(chart_df.set_index("Type"))
 
-        st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
-        # INSIGHTS
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-        st.subheader("🧠 AI Insights")
+# ---------------- INSIGHTS ----------------
+st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-        if viral > 70:
-            st.success("🔥 Trending product detected — high demand expected.")
-        elif holiday > 6:
-            st.info("📅 Seasonal demand increase expected.")
-        else:
-            st.warning("⚖️ Stable market demand.")
+st.subheader("🧠 AI Insights")
 
-        st.markdown("</div>", unsafe_allow_html=True)
+if viral > 70:
+    st.success("🔥 Trending product detected — high demand expected.")
+elif holiday > 6:
+    st.info("📅 Seasonal demand increase expected.")
+else:
+    st.warning("⚖️ Stable market demand.")
+
+st.markdown("</div>", unsafe_allow_html=True)
     # Logout button
     col1, col2 = st.columns([8,1])
     with col2:
