@@ -41,48 +41,62 @@ st.markdown("""
 
 /* Background */
 .stApp {
-    background: linear-gradient(135deg, #0f172a, #020617);
-    color: white;
+    background: radial-gradient(circle at top, #0f172a, #020617);
+    color: #e2e8f0;
 }
 
-/* Glass cards */
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #020617, #0f172a);
+    border-right: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Glass card */
 .card {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 20px;
-    border-radius: 15px;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.1);
-    margin-bottom: 20px;
+    background: rgba(255,255,255,0.05);
+    padding: 25px;
+    border-radius: 20px;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 25px;
+    transition: 0.3s;
+}
+
+.card:hover {
+    transform: scale(1.02);
 }
 
 /* KPI cards */
 .kpi {
-    background: linear-gradient(135deg, #1e293b, #020617);
-    padding: 20px;
-    border-radius: 15px;
+    background: linear-gradient(135deg, #020617, #1e293b);
+    padding: 25px;
+    border-radius: 20px;
     text-align: center;
-    box-shadow: 0 0 20px rgba(0,255,255,0.1);
+    box-shadow: 0 0 25px rgba(0,255,255,0.15);
 }
 
 /* Buttons */
 .stButton>button {
     background: linear-gradient(135deg, #06b6d4, #3b82f6);
-    color: white;
-    border-radius: 10px;
-    padding: 10px;
     border: none;
+    color: white;
+    padding: 12px;
+    border-radius: 12px;
     font-weight: bold;
 }
 
-/* Titles */
-h1, h2, h3 {
-    color: #f1f5f9;
-}
-
-/* Input boxes */
-input, .stSelectbox {
+/* Inputs */
+input, textarea {
     background-color: #020617 !important;
     color: white !important;
+}
+
+/* Titles */
+h1 {
+    font-size: 42px;
+}
+h2 {
+    font-size: 28px;
 }
 
 </style>
@@ -198,10 +212,10 @@ model = train_model(load_data())
 if st.session_state.page == "welcome":
 
     st.markdown("""
-    <div style='text-align:center; padding:60px;'>
-        <h1 style='font-size:60px;'>🚀 AIDP Engine</h1>
-        <h3>AI-Powered Retail Demand Intelligence</h3>
-        <p style='color:gray;'>Predict. Optimize. Grow.</p>
+    <div style='text-align:center; padding:80px;'>
+        <h1 style='font-size:70px;'>🚀 AIDP Engine</h1>
+        <h3>AI Demand Intelligence Platform</h3>
+        <p style='color:gray;'>Predict demand. Optimize inventory. Maximize profit.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -210,10 +224,10 @@ if st.session_state.page == "welcome":
     with col2:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-        if st.button("🔐 Login", use_container_width=True):
+        if st.button("🔐 Login", key="login_btn", use_container_width=True):
             st.session_state.page = "login"
 
-        if st.button("📝 Signup", use_container_width=True):
+        if st.button("📝 Signup", key="signup_btn", use_container_width=True):
             st.session_state.page = "signup"
 
         st.markdown("</div>", unsafe_allow_html=True)
@@ -254,11 +268,95 @@ elif st.session_state.page == "signup":
 # ==============================
 # 📊 DASHBOARD
 # ==============================
-elif st.session_state.page == "dashboard" and st.session_state.user:
+if st.session_state.page == "dashboard" and st.session_state.user:
 
-    st.markdown("<h1>📊 AIDP Intelligence Dashboard</h1>", unsafe_allow_html=True)
-    st.caption("AI-powered retail insights & forecasting")
+    st.markdown("<h1>📊 AI Intelligence Dashboard</h1>", unsafe_allow_html=True)
 
+    # INPUT CARD
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+
+    st.subheader("📥 Business Inputs")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        product = st.text_input("📦 Product", "Wheat Flour", key="product")
+
+    with col2:
+        city = st.text_input("📍 City", "Jaipur", key="city")
+
+    with col3:
+        month_name = st.selectbox("📅 Month", list(calendar.month_name)[1:], key="month")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    month = list(calendar.month_name).index(month_name)
+    year = 2025
+
+    holiday = get_holidays(year, month)
+    temp = get_weather(city)
+    viral = simulate_viral_score(product)
+    price = fetch_product_price(product)
+
+    # KPI
+    st.subheader("📊 Market Intelligence")
+
+    k1, k2, k3, k4 = st.columns(4)
+
+    k1.markdown(f"<div class='kpi'><h4>🌡 Temp</h4><h2>{temp:.1f}°C</h2></div>", unsafe_allow_html=True)
+    k2.markdown(f"<div class='kpi'><h4>📅 Holidays</h4><h2>{holiday}</h2></div>", unsafe_allow_html=True)
+    k3.markdown(f"<div class='kpi'><h4>🔥 Trend</h4><h2>{viral}</h2></div>", unsafe_allow_html=True)
+    k4.markdown(f"<div class='kpi'><h4>💰 Price</h4><h2>{price}</h2></div>", unsafe_allow_html=True)
+
+    # PREDICT
+    if st.button("🚀 Run AI Prediction", key="predict_btn"):
+
+        input_df = pd.DataFrame({
+            "holiday_count":[holiday],
+            "avg_temp":[temp],
+            "viral_score":[viral]
+        })
+
+        pred = model.predict(input_df)[0]
+        inventory = pred * 1.1
+
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+
+        st.subheader("📈 AI Forecast")
+
+        c1, c2 = st.columns(2)
+        c1.metric("📦 Sales", int(pred))
+        c2.metric("📊 Inventory", int(inventory))
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # GRAPH
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+
+        st.subheader("📊 Demand Analysis")
+
+        chart_df = pd.DataFrame({
+            "Type":["Sales","Inventory"],
+            "Value":[pred, inventory]
+        })
+
+        st.bar_chart(chart_df.set_index("Type"))
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # INSIGHTS
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+
+        st.subheader("🧠 AI Insights")
+
+        if viral > 70:
+            st.success("🔥 Trending product detected — high demand expected.")
+        elif holiday > 6:
+            st.info("📅 Seasonal demand increase expected.")
+        else:
+            st.warning("⚖️ Stable market demand.")
+
+        st.markdown("</div>", unsafe_allow_html=True)
     # Logout button
     col1, col2 = st.columns([8,1])
     with col2:
@@ -267,6 +365,22 @@ elif st.session_state.page == "dashboard" and st.session_state.user:
             st.session_state.page = "welcome"
 
     st.divider()
+    with st.sidebar:
+    st.markdown("## 🚀 AIDP")
+    st.markdown("---")
+    st.markdown("### Navigation")
+
+    page = st.radio(
+        "Go to",
+        ["Dashboard", "Analytics", "Settings"],
+        key="sidebar_nav"
+    )
+
+    st.markdown("---")
+
+    if st.button("Logout", key="logout_btn"):
+        st.session_state.user = None
+        st.session_state.page = "welcome"
 
     # ---------------- INPUT CARD ----------------
     st.markdown("<div class='card'>", unsafe_allow_html=True)
