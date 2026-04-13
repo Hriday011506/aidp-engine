@@ -423,28 +423,28 @@ with st.sidebar:
         st.session_state.page = "welcome"
 
     # ---------------- INPUT CARD ----------------
-   with st.sidebar:
+    with st.sidebar:
 
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.subheader("📥 Business Inputs")
+     st.markdown("<div class='card'>", unsafe_allow_html=True)
+     st.subheader("📥 Business Inputs")
 
-    st.session_state.product = st.text_input(
-        "📦 Product",
-        st.session_state.get("product", "Wheat Flour")
-    )
+     st.session_state.product = st.text_input(
+         "📦 Product",
+         st.session_state.get("product", "Wheat Flour")
+     )
 
-    st.session_state.city = st.text_input(
-        "📍 City",
-        st.session_state.get("city", "Jaipur")
-    )
+     st.session_state.city = st.text_input(
+         "📍 City",
+         st.session_state.get("city", "Jaipur")
+     )
 
-    st.session_state.month_name = st.selectbox(
-        "📅 Month",
-        list(calendar.month_name)[1:],
-        index=list(calendar.month_name)[1:].index(
-            st.session_state.get("month_name", "January")
-        )
-    )
+     st.session_state.month_name = st.selectbox(
+         "📅 Month",
+         list(calendar.month_name)[1:],
+         index=list(calendar.month_name)[1:].index(
+             st.session_state.get("month_name", "January")
+         )
+     )
 
     st.markdown("</div>", unsafe_allow_html=True)xx
 
