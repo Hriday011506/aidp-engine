@@ -310,27 +310,27 @@ if st.session_state.page == "dashboard" and st.session_state.user:
     k4.markdown(f"<div class='kpi'><h4>💰 Price</h4><h2>{price}</h2></div>", unsafe_allow_html=True)
 
     # PREDICT
-   if st.button("🚀 Predict Demand", key="predict_btn_main"):
+ # ---------------- PREDICT ----------------
+if st.button("🚀 Predict Demand", key="predict_btn_main"):
 
-        input_df = pd.DataFrame({
-            "holiday_count":[holiday],
-            "avg_temp":[temp],
-            "viral_score":[viral]
-        })
+    input_df = pd.DataFrame({
+        "holiday_count": [holiday],
+        "avg_temp": [temp],
+        "viral_score": [viral]
+    })
 
-        pred = model.predict(input_df)[0]
-        inventory = pred * 1.1
+    pred = model.predict(input_df)[0]
+    inventory = pred * 1.1
 
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-        st.subheader("📈 AI Forecast")
+    st.subheader("📈 AI Forecast")
 
-        c1, c2 = st.columns(2)
-        c1.metric("📦 Sales", int(pred))
-        c2.metric("📊 Inventory", int(inventory))
+    c1, c2 = st.columns(2)
+    c1.metric("📦 Sales", int(pred))
+    c2.metric("📊 Inventory", int(inventory))
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
+    st.markdown("</div>", unsafe_allow_html=True)
         # GRAPH
         st.markdown("<div class='card'>", unsafe_allow_html=True)
 
