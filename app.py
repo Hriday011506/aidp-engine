@@ -307,7 +307,7 @@ user = st.session_state.user
 
 col1, col2 = st.columns(2)
 
-col1.write(f"📧 Email: {user.get('email')}")
+col1.write(f" Email: {user.get('email')}")
 col2.write(f"🏢 GST: {user.get('gst')}")
 
 col1.write(f"💰 Turnover: {user.get('turnover')}")
