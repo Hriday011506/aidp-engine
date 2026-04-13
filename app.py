@@ -105,10 +105,18 @@ h2 {
 # ==============================
 # 🔐 AUTH FUNCTIONS
 # ==============================
-def signup(email, password):
+def signup(email, password, gst, turnover):
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-    users_collection.insert_one({"email": email, "password": hashed})
 
+    user_doc = {
+        "email": email,
+        "password": hashed,
+        "gst": gst,
+        "turnover": turnover,
+        "created_at": datetime.datetime.now()
+    }
+
+    users_collection.insert_one(user_doc)
 def login(email, password):
     user = users_collection.find_one({"email": email})
     if user and bcrypt.checkpw(password.encode(), user["password"]):
@@ -256,19 +264,55 @@ elif st.session_state.page == "login":
 # ==============================
 elif st.session_state.page == "signup":
 
-    st.title("📝 Signup")
+    st.markdown("<h2>📝 Create Business Account</h2>", unsafe_allow_html=True)
 
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-    if st.button("Create Account"):
-        signup(email, password)
-        st.success("Account created successfully")
-        st.session_state.page = "login"
+    email = st.text_input("📧 Business Email", key="signup_email")
+    password = st.text_input("🔒 Password", type="password", key="signup_password")
+
+    gst = st.text_input("🏢 GST Number", placeholder="Enter GSTIN", key="signup_gst")
+
+    turnover = st.selectbox(
+        "💰 Annual Turnover",
+        [
+            "1–5 Lakh",
+            "5–10 Lakh",
+            "10–15 Lakh",
+            "15–50 Lakh",
+            "50 Lakh+"
+        ],
+        key="signup_turnover"
+    )
+
+    if st.button("🚀 Create Account", key="create_account_btn"):
+
+        if not email or not password or not gst:
+            st.error("Please fill all required fields")
+        else:
+            signup(email, password, gst, turnover)
+            st.success("✅ Account created successfully")
+            st.session_state.page = "login"
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
 # 📊 DASHBOARD
 # ==============================
+st.markdown("<div class='card'>", unsafe_allow_html=True)
+
+st.subheader("🏢 Business Profile")
+
+user = st.session_state.user
+
+col1, col2 = st.columns(2)
+
+col1.write(f"📧 Email: {user.get('email')}")
+col2.write(f"🏢 GST: {user.get('gst')}")
+
+col1.write(f"💰 Turnover: {user.get('turnover')}")
+
+st.markdown("</div>", unsafe_allow_html=True)
 if st.session_state.page == "dashboard" and st.session_state.user:
 
     st.markdown("<h1>📊 AI Intelligence Dashboard</h1>", unsafe_allow_html=True)
