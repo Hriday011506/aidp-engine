@@ -62,7 +62,7 @@ def login(email, password):
     return None
 
 # ==============================
-# 💰 PRICE FUNCTION (IMPROVED)
+# 💰 PRICE FUNCTION 
 # ==============================
 def fetch_product_price(product_name):
     try:
@@ -73,19 +73,28 @@ def fetch_product_price(product_name):
             "hl": "en",
             "api_key": SERPAPI_KEY
         }
+
         results = GoogleSearch(params).get_dict()
         products = results.get("shopping_results", [])
 
         if products:
             p = products[0]
+
             price = p.get("price") or p.get("extracted_price")
+
             if price:
-                return f"₹{price}"
+                price = str(price)
+
+             
+                if "₹" in price:
+                    return price
+                else:
+                    return f"₹{price}"
+
     except:
         pass
 
     return "₹ Data unavailable"
-
 # ==============================
 # 🌦 WEATHER
 # ==============================
