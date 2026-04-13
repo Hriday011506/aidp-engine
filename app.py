@@ -321,9 +321,9 @@ if st.session_state.page == "dashboard" and st.session_state.user:
     st.markdown("<h1>📊 AI Intelligence Dashboard</h1>", unsafe_allow_html=True)
 
     # ⚠️ FIX: Ensure variables exist before use
-    product = "Wheat Flour"
-    city = "Jaipur"
-    month_name = "January"
+   product = st.session_state.get("product", "Wheat Flour")
+   city = st.session_state.get("city", "Jaipur")
+   month_name = st.session_state.get("month_name", "January")
 
     month = list(calendar.month_name).index(month_name)
     year = 2025
@@ -423,24 +423,30 @@ with st.sidebar:
         st.session_state.page = "welcome"
 
     # ---------------- INPUT CARD ----------------
+   with st.sidebar:
+
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.subheader("📥 Business Inputs")
 
-    col1, col2, col3 = st.columns(3)
+    st.session_state.product = st.text_input(
+        "📦 Product",
+        st.session_state.get("product", "Wheat Flour")
+    )
 
-    with col1:
-        product = st.text_input("📦 Product", "Wheat Flour")
+    st.session_state.city = st.text_input(
+        "📍 City",
+        st.session_state.get("city", "Jaipur")
+    )
 
-    with col2:
-        city = st.text_input("📍 City", "Jaipur")
+    st.session_state.month_name = st.selectbox(
+        "📅 Month",
+        list(calendar.month_name)[1:],
+        index=list(calendar.month_name)[1:].index(
+            st.session_state.get("month_name", "January")
+        )
+    )
 
-    with col3:
-        month_name = st.selectbox("📅 Month", list(calendar.month_name)[1:])
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    month = list(calendar.month_name).index(month_name)
-    year = 2025
+    st.markdown("</div>", unsafe_allow_html=True)xx
 
     # ---------------- DATA ----------------
     holiday = get_holidays(year, month)
