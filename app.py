@@ -447,7 +447,14 @@ with st.sidebar:
      )
 
     st.markdown("</div>", unsafe_allow_html=True)
+    # ✅ Ensure variables exist before use
+    product = st.session_state.get("product", "Wheat Flour")
+    city = st.session_state.get("city", "Jaipur")
+    month_name = st.session_state.get("month_name", "January")
 
+# ✅ Define month & year safely
+    month = list(calendar.month_name).index(month_name)
+    year = 2026
     # ---------------- DATA ----------------
     month_name = st.session_state.get("month_name", "January")
     month = list(calendar.month_name).index(month_name)
