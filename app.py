@@ -446,7 +446,7 @@ with st.sidebar:
          )
      )
 
-    st.markdown("</div>", unsafe_allow_html=True)xx
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # ---------------- DATA ----------------
     holiday = get_holidays(year, month)
