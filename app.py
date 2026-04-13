@@ -360,7 +360,7 @@ else:
 
 st.markdown("</div>", unsafe_allow_html=True)
     # Logout button
-    col1, col2 = st.columns([8,1])
+col1, col2 = st.columns([8,1])
     with col2:
         if st.button("Logout"):
             st.session_state.user = None
