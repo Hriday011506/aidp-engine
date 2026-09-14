@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -12,20 +11,31 @@ import bcrypt
 from serpapi import GoogleSearch
 
 # ==============================
-# 🔐 CONFIG
+# CONFIG
 # ==============================
-MONGO_URI = "mongodb+srv://hridaymahajan1979_db_user:hriday@aidp.jz72py2.mongodb.net/?retryWrites=true&w=majority"
-SERPAPI_KEY = "bbc8aca8053bbe60b9c7017e236f71656667f6b4d2bbf3b2da695084ad8766b4"
+MONGO_URI = st.secrets.get("MONGO_URI", "")
+SERPAPI_KEY = st.secrets.get("SERPAPI_KEY", "")
 
 # ==============================
-# 🗄️ DATABASE
+# DATABASE
 # ==============================
-client = MongoClient(MONGO_URI)
-db = client["aidp_db"]
-users_collection = db["users"]
+@st.cache_resource
+def get_database():
+    if not MONGO_URI:
+        return None
+    try:
+        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000)
+        client.admin.command("ping")
+        return client["aidp_db"]
+    except Exception as exc:
+        st.error(f"MongoDB connection failed: {exc}")
+        return None
+
+db = get_database()
+users_collection = db["users"] if db is not None else None
 
 # ==============================
-# 🔐 SESSION
+# SESSION
 # ==============================
 if "user" not in st.session_state:
     st.session_state.user = None
@@ -33,26 +43,20 @@ if "page" not in st.session_state:
     st.session_state.page = "welcome"
 
 # ==============================
-# 🎨 UI STYLE
+# UI STYLE
 # ==============================
 st.set_page_config(page_title="AIDP Engine", layout="wide")
 
 st.markdown("""
 <style>
-
-/* Background */
 .stApp {
     background: radial-gradient(circle at top, #0f172a, #020617);
     color: #e2e8f0;
 }
-
-/* Sidebar */
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #020617, #0f172a);
     border-right: 1px solid rgba(255,255,255,0.1);
 }
-
-/* Glass card */
 .card {
     background: rgba(255,255,255,0.05);
     padding: 25px;
@@ -62,12 +66,7 @@ section[data-testid="stSidebar"] {
     margin-bottom: 25px;
     transition: 0.3s;
 }
-
-.card:hover {
-    transform: scale(1.02);
-}
-
-/* KPI cards */
+.card:hover { transform: scale(1.02); }
 .kpi {
     background: linear-gradient(135deg, #020617, #1e293b);
     padding: 25px;
@@ -75,8 +74,6 @@ section[data-testid="stSidebar"] {
     text-align: center;
     box-shadow: 0 0 25px rgba(0,255,255,0.15);
 }
-
-/* Buttons */
 .stButton>button {
     background: linear-gradient(135deg, #06b6d4, #3b82f6);
     border: none;
@@ -85,48 +82,55 @@ section[data-testid="stSidebar"] {
     border-radius: 12px;
     font-weight: bold;
 }
-
-/* Inputs */
 input, textarea {
     background-color: #020617 !important;
     color: white !important;
 }
-
-/* Titles */
-h1 {
-    font-size: 42px;
-}
-h2 {
-    font-size: 28px;
-}
-
+h1 { font-size: 42px; }
+h2 { font-size: 28px; }
 </style>
 """, unsafe_allow_html=True)
+
 # ==============================
-# 🔐 AUTH FUNCTIONS
+# AUTH FUNCTIONS
 # ==============================
 def signup(email, password, gst, turnover):
-    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+    if users_collection is None:
+        return False, "Database is not configured. Add MONGO_URI in Streamlit Secrets."
 
-    user_doc = {
-        "email": email,
-        "password": hashed,
-        "gst": gst,
-        "turnover": turnover,
-        "created_at": datetime.datetime.now()
-    }
+    try:
+        hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+        user_doc = {
+            "email": email,
+            "password": hashed,
+            "gst": gst,
+            "turnover": turnover,
+            "created_at": datetime.datetime.now()
+        }
+        users_collection.insert_one(user_doc)
+        return True, "Account created successfully"
+    except Exception as exc:
+        return False, f"Signup failed: {exc}"
 
-    users_collection.insert_one(user_doc)
+
 def login(email, password):
-    user = users_collection.find_one({"email": email})
-    if user and bcrypt.checkpw(password.encode(), user["password"]):
-        return user
+    if users_collection is None:
+        return None
+    try:
+        user = users_collection.find_one({"email": email})
+        if user and bcrypt.checkpw(password.encode(), user["password"]):
+            return user
+    except Exception:
+        return None
     return None
 
 # ==============================
-# 💰 PRICE FUNCTION 
+# PRICE FUNCTION
 # ==============================
 def fetch_product_price(product_name):
+    if not SERPAPI_KEY:
+        return "₹ Data unavailable"
+
     try:
         params = {
             "engine": "google_shopping",
@@ -135,47 +139,50 @@ def fetch_product_price(product_name):
             "hl": "en",
             "api_key": SERPAPI_KEY
         }
-
         results = GoogleSearch(params).get_dict()
         products = results.get("shopping_results", [])
 
         if products:
-            p = products[0]
-
-            price = p.get("price") or p.get("extracted_price")
-
-            if price:
+            price = products[0].get("price") or products[0].get("extracted_price")
+            if price is not None:
                 price = str(price)
-
-             
-                if "₹" in price:
-                    return price
-                else:
-                    return f"₹{price}"
-
-    except:
+                return price if "₹" in price else f"₹{price}"
+    except Exception:
         pass
 
     return "₹ Data unavailable"
+
 # ==============================
-# 🌦 WEATHER
+# WEATHER
 # ==============================
 def get_weather(city):
     try:
-        geo = requests.get(f"https://geocoding-api.open-meteo.com/v1/search?name={city}").json()
-        lat = geo["results"][0]["latitude"]
-        lon = geo["results"][0]["longitude"]
+        response = requests.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": city, "count": 1},
+            timeout=10
+        )
+        response.raise_for_status()
+        geo = response.json()
+        results = geo.get("results", [])
+        if not results:
+            return 25
 
-        weather = requests.get(
-            f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
-        ).json()
+        lat = results[0]["latitude"]
+        lon = results[0]["longitude"]
 
-        return weather["current_weather"]["temperature"]
-    except:
+        weather_response = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={"latitude": lat, "longitude": lon, "current_weather": "true"},
+            timeout=10
+        )
+        weather_response.raise_for_status()
+        return weather_response.json()["current_weather"]["temperature"]
+    except Exception:
         return 25
 
 # ==============================
-# 📅 HOLIDAYS
+# HOLIDAYS
 # ==============================
 def get_holidays(year, month):
     india_holidays = holidays.India(years=year)
@@ -188,38 +195,48 @@ def get_holidays(year, month):
     )
 
 # ==============================
-# 🔥 VIRAL SCORE
+# VIRAL SCORE
 # ==============================
 def simulate_viral_score(product):
     np.random.seed(abs(hash(product)) % 100)
     return np.random.randint(30, 90)
 
 # ==============================
-# 🤖 MODEL
+# MODEL
 # ==============================
 @st.cache_data
 def load_data():
+    rng = np.random.default_rng(42)
     df = pd.DataFrame({
-        "holiday_count": np.random.randint(0, 10, 100),
-        "avg_temp": np.random.randint(10, 40, 100),
-        "viral_score": np.random.randint(0, 100, 100)
+        "holiday_count": rng.integers(0, 10, 100),
+        "avg_temp": rng.integers(10, 40, 100),
+        "viral_score": rng.integers(0, 100, 100)
     })
-    df["sales"] = 200 + df["holiday_count"]*50 + df["avg_temp"]*10 + df["viral_score"]*5
+    df["sales"] = (
+        200
+        + df["holiday_count"] * 50
+        + df["avg_temp"] * 10
+        + df["viral_score"] * 5
+    )
     return df
+
 
 @st.cache_resource
 def train_model(df):
-    model = RandomForestRegressor()
-    model.fit(df[["holiday_count","avg_temp","viral_score"]], df["sales"])
+    model = RandomForestRegressor(random_state=42)
+    model.fit(
+        df[["holiday_count", "avg_temp", "viral_score"]],
+        df["sales"]
+    )
     return model
+
 
 model = train_model(load_data())
 
 # ==============================
-# 🚀 WELCOME PAGE
+# WELCOME PAGE
 # ==============================
 if st.session_state.page == "welcome":
-
     st.markdown("""
     <div style='text-align:center; padding:80px;'>
         <h1 style='font-size:70px;'>🚀 AIDP Engine</h1>
@@ -228,24 +245,19 @@ if st.session_state.page == "welcome":
     </div>
     """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1,2,1])
-
+    col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-
         if st.button("🔐 Login", key="login_btn", use_container_width=True):
             st.session_state.page = "login"
-
         if st.button("📝 Signup", key="signup_btn", use_container_width=True):
             st.session_state.page = "signup"
-
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
-# 🔐 LOGIN
+# LOGIN
 # ==============================
 elif st.session_state.page == "login":
-
     st.title("🔐 Login")
 
     email = st.text_input("Email")
@@ -256,71 +268,57 @@ elif st.session_state.page == "login":
         if user:
             st.session_state.user = user
             st.session_state.page = "dashboard"
+            st.rerun()
         else:
-            st.error("Invalid credentials")
+            st.error("Invalid credentials or database unavailable.")
 
 # ==============================
-# 📝 SIGNUP
+# SIGNUP
 # ==============================
 elif st.session_state.page == "signup":
-
     st.markdown("<h2>📝 Create Business Account</h2>", unsafe_allow_html=True)
-
     st.markdown("<div class='card'>", unsafe_allow_html=True)
 
     email = st.text_input("📧 Business Email", key="signup_email")
     password = st.text_input("🔒 Password", type="password", key="signup_password")
-
     gst = st.text_input("🏢 GST Number", placeholder="Enter GSTIN", key="signup_gst")
 
     turnover = st.selectbox(
         "💰 Annual Turnover",
-        [
-            "1–5 Lakh",
-            "5–10 Lakh",
-            "10–15 Lakh",
-            "15–50 Lakh",
-            "50 Lakh+"
-        ],
+        ["1–5 Lakh", "5–10 Lakh", "10–15 Lakh", "15–50 Lakh", "50 Lakh+"],
         key="signup_turnover"
     )
 
     if st.button("🚀 Create Account", key="create_account_btn"):
-
         if not email or not password or not gst:
             st.error("Please fill all required fields")
         else:
-            signup(email, password, gst, turnover)
-            st.success("✅ Account created successfully")
-            st.session_state.page = "login"
+            ok, message = signup(email, password, gst, turnover)
+            if ok:
+                st.success(f"✅ {message}")
+                st.session_state.page = "login"
+                st.rerun()
+            else:
+                st.error(message)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
-# 📊 DASHBOARD (FIXED ONLY)
+# DASHBOARD
 # ==============================
-
 if st.session_state.page == "dashboard" and st.session_state.user:
-
     user = st.session_state.user
 
-    # ---------------- BUSINESS PROFILE ----------------
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.subheader("🏢 Business Profile")
-
     col1, col2 = st.columns(2)
-
     col1.write(f"📧 Email: {user.get('email', 'N/A')}")
     col2.write(f"🏢 GST: {user.get('gst', 'N/A')}")
-
     col1.write(f"💰 Turnover: {user.get('turnover', 'N/A')}")
-
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # ---------------- MAIN DASHBOARD ----------------
     st.markdown("<h1>📊 AI Intelligence Dashboard</h1>", unsafe_allow_html=True)
 
-    # ⚠️ FIX: Ensure variables exist before use
     product = st.session_state.get("product", "Wheat Flour")
     city = st.session_state.get("city", "Jaipur")
     month_name = st.session_state.get("month_name", "January")
@@ -333,19 +331,14 @@ if st.session_state.page == "dashboard" and st.session_state.user:
     viral = simulate_viral_score(product)
     price = fetch_product_price(product)
 
-    # KPI
     st.subheader("📊 Market Intelligence")
-
     k1, k2, k3, k4 = st.columns(4)
-
     k1.markdown(f"<div class='kpi'><h4>🌡 Temp</h4><h2>{temp:.1f}°C</h2></div>", unsafe_allow_html=True)
     k2.markdown(f"<div class='kpi'><h4>📅 Holidays</h4><h2>{holiday}</h2></div>", unsafe_allow_html=True)
     k3.markdown(f"<div class='kpi'><h4>🔥 Trend</h4><h2>{viral}</h2></div>", unsafe_allow_html=True)
     k4.markdown(f"<div class='kpi'><h4>💰 Price</h4><h2>{price}</h2></div>", unsafe_allow_html=True)
 
-    # ---------------- PREDICT ----------------
     if st.button("🚀 Predict Demand", key="predict_btn_dashboard"):
-
         input_df = pd.DataFrame({
             "holiday_count": [holiday],
             "avg_temp": [temp],
@@ -356,265 +349,34 @@ if st.session_state.page == "dashboard" and st.session_state.user:
         inventory = pred * 1.1
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-
         st.subheader("📈 AI Forecast")
-
         c1, c2 = st.columns(2)
         c1.metric("📦 Sales", int(pred))
         c2.metric("📊 Inventory", int(inventory))
-
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # GRAPH
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-
         st.subheader("📊 Demand Analysis")
-
         chart_df = pd.DataFrame({
             "Type": ["Sales", "Inventory"],
             "Value": [pred, inventory]
         })
-
         st.bar_chart(chart_df.set_index("Type"))
-
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # INSIGHTS
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-
         st.subheader("🧠 AI Insights")
-
         if viral > 70:
             st.success("🔥 Trending product detected — high demand expected.")
         elif holiday > 6:
             st.info("📅 Seasonal demand increase expected.")
         else:
             st.warning("⚖️ Stable market demand.")
-
-        st.markdown("</div>", unsafe_allow_html=True)
-    # Logout button
-col1, col2 = st.columns([8,1])
-with col2:
-    if st.button("Logout"):
-        st.session_state.user = None
-        st.session_state.page = "welcome"
-
-    st.divider()
-   # ==============================
-# 📌 SIDEBAR
-# ==============================
-
-with st.sidebar:
-    st.markdown("## 🚀 AIDP")
-    st.markdown("---")
-
-    st.markdown("### Navigation")
-
-    page = st.radio(
-        "Go to",
-        ["Dashboard", "Analytics", "Settings"],
-        key="sidebar_nav"
-    )
-
-    st.markdown("---")
-
-    if st.button("Logout", key="logout_btn"):
-        st.session_state.user = None
-        st.session_state.page = "welcome"
-
-    # ---------------- INPUT CARD ----------------
-    with st.sidebar:
-
-     st.markdown("<div class='card'>", unsafe_allow_html=True)
-     st.subheader("📥 Business Inputs")
-
-     st.session_state.product = st.text_input(
-         "📦 Product",
-         st.session_state.get("product", "Wheat Flour")
-     )
-
-     st.session_state.city = st.text_input(
-         "📍 City",
-         st.session_state.get("city", "Jaipur")
-     )
-
-     st.session_state.month_name = st.selectbox(
-         "📅 Month",
-         list(calendar.month_name)[1:],
-         index=list(calendar.month_name)[1:].index(
-             st.session_state.get("month_name", "January")
-         )
-     )
-
-    st.markdown("</div>", unsafe_allow_html=True)
-    # ✅ Ensure variables exist before use
-    product = st.session_state.get("product", "Wheat Flour")
-    city = st.session_state.get("city", "Jaipur")
-    month_name = st.session_state.get("month_name", "January")
-
-# ✅ Define month & year safely
-    month = list(calendar.month_name).index(month_name)
-    year = 2026
-    # ---------------- DATA ----------------
-    month_name = st.session_state.get("month_name", "January")
-    month = list(calendar.month_name).index(month_name)
-    holiday = get_holidays(year, month)
-    temp = get_weather(city)
-    viral = simulate_viral_score(product)
-    price = fetch_product_price(product)
-
-    # ---------------- KPI CARDS ----------------
-    st.subheader("📊 Market Intelligence")
-
-    k1, k2, k3, k4 = st.columns(4)
-
-    with k1:
-        st.markdown(f"<div class='kpi'><h4>🌡 Temp</h4><h2>{temp:.1f}°C</h2></div>", unsafe_allow_html=True)
-
-    with k2:
-        st.markdown(f"<div class='kpi'><h4>📅 Holidays</h4><h2>{holiday}</h2></div>", unsafe_allow_html=True)
-
-    with k3:
-        st.markdown(f"<div class='kpi'><h4>🔥 Trend</h4><h2>{viral}</h2></div>", unsafe_allow_html=True)
-
-    with k4:
-        st.markdown(f"<div class='kpi'><h4>💰 Price</h4><h2>{price}</h2></div>", unsafe_allow_html=True)
-
-    st.divider()
-
-    # ---------------- PREDICTION ----------------
-    if st.button("🚀 Predict Demand", key="predict_btn_main"):
-
-        input_df = pd.DataFrame({
-            "holiday_count":[holiday],
-            "avg_temp":[temp],
-            "viral_score":[viral]
-        })
-
-        pred = model.predict(input_df)[0]
-        inventory = pred * 1.1
-
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-
-        st.subheader("📈 AI Forecast Results")
-
-        r1, r2 = st.columns(2)
-        r1.metric("📦 Sales", int(pred))
-        r2.metric("📊 Inventory", int(inventory))
-
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # Charts
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("📊 Sales vs Inventory")
-
-        chart_df = pd.DataFrame({
-            "Type":["Sales","Inventory"],
-            "Value":[pred, inventory]
-        })
-
-        st.bar_chart(chart_df.set_index("Type"))
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("📈 Demand Trend")
-
-        trend = pd.DataFrame({
-            "Month": list(range(1,13)),
-            "Demand": np.linspace(200, pred, 12)
-        })
-
-        st.line_chart(trend.set_index("Month"))
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        # Insights
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("🧠 AI Insights")
-
-        if viral > 70:
-            st.success("🔥 High demand expected — trending product.")
-        elif holiday > 6:
-            st.info("📅 Demand boost due to holidays.")
-        else:
-            st.warning("⚖️ Stable demand expected.")
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # INPUTS
-    st.subheader("📥 Inputs")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        product = st.text_input("Product", "Wheat Flour")
-
+    col1, col2 = st.columns([8, 1])
     with col2:
-        city = st.text_input("City", "Jaipur")
-
-    with col3:
-        month_name = st.selectbox("Month", list(calendar.month_name)[1:])
-
-    month = list(calendar.month_name).index(month_name)
-    year = 2025
-
-    # FETCH DATA
-    holiday = get_holidays(year, month)
-    temp = get_weather(city)
-    viral = simulate_viral_score(product)
-    price = fetch_product_price(product)
-
-    # KPI
-    st.subheader("📊 Market Indicators")
-
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric("🌡 Temperature", f"{temp:.1f} °C")
-    k2.metric("📅 Holidays", holiday)
-    k3.metric("🔥 Trend Score", viral)
-    k4.metric("💰 Market Price", price)
-
-    st.divider()
-
-    # PREDICT
-    if st.button("🚀 Predict Demand"):
-
-        df = pd.DataFrame({
-            "holiday_count":[holiday],
-            "avg_temp":[temp],
-            "viral_score":[viral]
-        })
-
-        pred = model.predict(df)[0]
-        inventory = pred * 1.1
-
-        st.subheader("📈 Results")
-
-        r1, r2 = st.columns(2)
-        r1.metric("📦 Sales", int(pred))
-        r2.metric("📊 Inventory", int(inventory))
-
-        # Charts
-        st.subheader("📊 Sales vs Inventory")
-
-        chart_df = pd.DataFrame({
-            "Type":["Sales","Inventory"],
-            "Value":[pred, inventory]
-        })
-        st.bar_chart(chart_df.set_index("Type"))
-
-        st.subheader("📈 Demand Trend")
-
-        trend = pd.DataFrame({
-            "Month": list(range(1,13)),
-            "Demand": np.linspace(200, pred, 12)
-        })
-        st.line_chart(trend.set_index("Month"))
-
-        # Insights
-        st.subheader("🧠 Insights")
-
-        if viral > 70:
-            st.success("🔥 High demand expected")
-        elif holiday > 6:
-            st.info("📅 Demand may increase due to holidays")
-        else:
-            st.warning("⚖️ Stable demand expected")
+        if st.button("Logout"):
+            st.session_state.user = None
+            st.session_state.page = "welcome"
+            st.rerun()
