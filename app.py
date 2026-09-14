@@ -6,12 +6,22 @@ import datetime
 import calendar
 import holidays
 from sklearn.ensemble import RandomForestRegressor
-from google_search_results import GoogleSearch
+
+try:
+    from serpapi import GoogleSearch
+except ImportError:
+    GoogleSearch = None
 
 st.set_page_config(page_title="AIDP Engine", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
 
+# ==============================
+# CONFIG / SECRETS
+# ==============================
 SERPAPI_KEY = st.secrets.get("SERPAPI_KEY", "")
 
+# ==============================
+# SESSION
+# ==============================
 DEFAULTS = {
     "user": None,
     "page": "welcome",
@@ -25,6 +35,9 @@ for key, value in DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
+# ==============================
+# PREMIUM UI
+# ==============================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -78,7 +91,7 @@ def login(email, password):
 # MARKET DATA SERVICES
 # ==============================
 def fetch_product_price(product_name):
-    if not SERPAPI_KEY:
+    if not SERPAPI_KEY or GoogleSearch is None:
         return "₹ —"
     try:
         results = GoogleSearch({
@@ -157,6 +170,7 @@ def train_model(df):
     model.fit(df[["holiday_count", "avg_temp", "viral_score"]], df["sales"])
     return model
 
+
 model = train_model(load_data())
 
 # ==============================
@@ -169,14 +183,19 @@ with st.sidebar:
     if st.session_state.user:
         st.markdown(f"**{st.session_state.user.get('email','Business User')}**")
         if st.button("Overview", use_container_width=True):
-            st.session_state.page = "dashboard"; st.rerun()
+            st.session_state.page = "dashboard"
+            st.rerun()
         if st.button("Forecast", use_container_width=True):
-            st.session_state.page = "dashboard"; st.rerun()
+            st.session_state.page = "dashboard"
+            st.rerun()
         if st.button("Settings", use_container_width=True):
-            st.session_state.page = "settings"; st.rerun()
+            st.session_state.page = "settings"
+            st.rerun()
         st.divider()
         if st.button("Sign out", use_container_width=True):
-            st.session_state.user = None; st.session_state.page = "welcome"; st.rerun()
+            st.session_state.user = None
+            st.session_state.page = "welcome"
+            st.rerun()
     else:
         st.markdown("### Built for modern retail")
         st.caption("Forecast demand. Protect inventory. Make faster decisions.")
@@ -195,8 +214,12 @@ if st.session_state.page == "welcome":
         c.metric("Signals", "Live Context")
     with right:
         st.markdown("<div class='card'><div class='eyebrow'>BUSINESS PORTAL</div><h2>Get started</h2><p style='color:#94a3b8;'>Create a workspace or sign in to access your intelligence console.</p></div>", unsafe_allow_html=True)
-        if st.button("Sign in to AIDP", use_container_width=True): st.session_state.page="login"; st.rerun()
-        if st.button("Create business account", use_container_width=True): st.session_state.page="signup"; st.rerun()
+        if st.button("Sign in to AIDP", use_container_width=True):
+            st.session_state.page = "login"
+            st.rerun()
+        if st.button("Create business account", use_container_width=True):
+            st.session_state.page = "signup"
+            st.rerun()
 
 # ==============================
 # LOGIN
@@ -248,19 +271,20 @@ elif st.session_state.page == "settings" and st.session_state.user:
     c1.metric("Account", "Active")
     c2.metric("Email", user.get("email", "N/A"))
     c3.metric("Turnover", user.get("turnover", "N/A"))
-    st.info("AIDP demo authentication is active. SerpAPI is used only for market-price intelligence.")
+    st.info("AIDP demo authentication is active. SerpAPI is used for market-price intelligence.")
 
 # ==============================
 # DASHBOARD
 # ==============================
 elif st.session_state.page == "dashboard" and st.session_state.user:
-    user = st.session_state.user
     st.markdown("<div class='hero'><div class='eyebrow'>LIVE INTELLIGENCE CONSOLE</div><h1>Good decisions start with good signals.</h1><p>Configure your context, read the market pulse, generate a demand forecast and translate it into an inventory action.</p></div>", unsafe_allow_html=True)
 
     st.markdown("### Forecast setup")
     c1,c2,c3=st.columns([1.6,1,1])
-    with c1: product=st.text_input("Product", value=st.session_state.product)
-    with c2: city=st.text_input("City", value=st.session_state.city)
+    with c1:
+        product=st.text_input("Product", value=st.session_state.product)
+    with c2:
+        city=st.text_input("City", value=st.session_state.city)
     with c3:
         months=list(calendar.month_name)[1:]
         month_name=st.selectbox("Forecast month", months, index=months.index(st.session_state.month_name))
@@ -302,9 +326,9 @@ elif st.session_state.page == "dashboard" and st.session_state.user:
             st.caption("Forecast plus a 10% planning buffer.")
             st.markdown("</div>",unsafe_allow_html=True)
         with r3:
-            st.markdown("<div class='card'><div class='eyebrow'>MARKET SIGNAL</div>",unsafe_allow_html=True)
+            st.markdown("<div class='card'><div class='eyebrow'>CONFIDENCE SIGNALS</div>",unsafe_allow_html=True)
             st.metric("Trend score", f"{viral}/100")
-            st.caption("Relative demand momentum indicator.")
+            st.caption("Higher score indicates stronger simulated demand momentum.")
             st.markdown("</div>",unsafe_allow_html=True)
 
         st.markdown("### Decision view")
