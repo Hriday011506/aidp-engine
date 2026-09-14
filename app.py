@@ -14,13 +14,30 @@ except ImportError:
 
 st.set_page_config(page_title="AIDP Engine", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
 
+# ==============================
+# CONFIG / SECRETS
+# ==============================
 SERPAPI_KEY = st.secrets.get("SERPAPI_KEY", "")
 
-DEFAULTS = {"user": None, "page": "welcome", "product": "Wheat Flour", "city": "Jaipur", "month_name": datetime.datetime.now().strftime("%B"), "last_prediction": None, "users": []}
+# ==============================
+# SESSION
+# ==============================
+DEFAULTS = {
+    "user": None,
+    "page": "welcome",
+    "product": "Wheat Flour",
+    "city": "Jaipur",
+    "month_name": datetime.datetime.now().strftime("%B"),
+    "last_prediction": None,
+    "users": []
+}
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
+# ==============================
+# PREMIUM UI
+# ==============================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -46,124 +63,267 @@ footer { visibility:hidden; }
 </style>
 """, unsafe_allow_html=True)
 
+# ==============================
+# LOCAL DEMO AUTH
+# ==============================
 def signup(email, password, gst, turnover):
     email = email.strip().lower()
-    if any(u["email"] == email for u in st.session_state.users): return False, "An account with this email already exists."
-    st.session_state.users.append({"email":email,"password":password,"gst":gst,"turnover":turnover,"created_at":datetime.datetime.now().isoformat()})
+    if any(u["email"] == email for u in st.session_state.users):
+        return False, "An account with this email already exists."
+    st.session_state.users.append({
+        "email": email,
+        "password": password,
+        "gst": gst,
+        "turnover": turnover,
+        "created_at": datetime.datetime.now().isoformat()
+    })
     return True, "Account created successfully."
+
 
 def login(email, password):
     email = email.strip().lower()
     for user in st.session_state.users:
-        if user["email"] == email and user["password"] == password: return user
+        if user["email"] == email and user["password"] == password:
+            return user
     return None
 
+# ==============================
+# MARKET DATA SERVICES
+# ==============================
 def fetch_product_price(product_name):
-    if not SERPAPI_KEY or GoogleSearch is None: return "₹ —"
+    if not SERPAPI_KEY or GoogleSearch is None:
+        return "₹ —"
     try:
-        results = GoogleSearch({"engine":"google_shopping","q":product_name,"gl":"in","hl":"en","api_key":SERPAPI_KEY}).get_dict()
-        products = results.get("shopping_results", [])
-        if products:
-            price = products[0].get("price") or products[0].get("extracted_price")
-            if price is not None:
-                value = str(price)
-                return value if "₹" in value else f"₹{value}"
-    except Exception: pass
+        queries = [
+            product_name,
+            f"{product_name} price India",
+            f"{product_name} latest price India"
+        ]
+
+        best_price = None
+        best_score = -1
+
+        for query in queries:
+            results = GoogleSearch({
+                "engine": "google_shopping",
+                "q": query,
+                "gl": "in",
+                "hl": "en",
+                "num": 20,
+                "api_key": SERPAPI_KEY
+            }).get_dict()
+
+            for item in results.get("shopping_results", []):
+                extracted = item.get("extracted_price")
+                raw_price = item.get("price")
+
+                try:
+                    numeric_price = float(extracted) if extracted is not None else None
+                except (TypeError, ValueError):
+                    numeric_price = None
+
+                title = str(item.get("title", "")).lower()
+                source = str(item.get("source", "")).lower()
+
+                score = 0
+                if product_name.lower() in title:
+                    score += 4
+                if "india" in title or "india" in source:
+                    score += 1
+                if numeric_price is not None and numeric_price > 0:
+                    score += 2
+
+                if numeric_price is not None and score > best_score:
+                    best_price = numeric_price
+                    best_score = score
+
+        if best_price is not None:
+            return f"₹{best_price:,.2f}"
+
+    except Exception:
+        pass
+
     return "₹ —"
+
 
 def get_weather(city):
     try:
-        response = requests.get("https://geocoding-api.open-meteo.com/v1/search", params={"name":city,"count":1}, timeout=8)
-        response.raise_for_status(); results=response.json().get("results",[])
-        if not results: return 25.0
-        lat,lon=results[0]["latitude"],results[0]["longitude"]
-        weather=requests.get("https://api.open-meteo.com/v1/forecast", params={"latitude":lat,"longitude":lon,"current_weather":"true"}, timeout=8)
-        weather.raise_for_status(); return float(weather.json()["current_weather"]["temperature"])
-    except Exception: return 25.0
+        response = requests.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": city, "count": 1}, timeout=8
+        )
+        response.raise_for_status()
+        results = response.json().get("results", [])
+        if not results:
+            return 25.0
+        lat, lon = results[0]["latitude"], results[0]["longitude"]
+        weather = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={"latitude": lat, "longitude": lon, "current_weather": "true"}, timeout=8
+        )
+        weather.raise_for_status()
+        return float(weather.json()["current_weather"]["temperature"])
+    except Exception:
+        return 25.0
+
 
 def get_holidays(year, month):
-    india_holidays=holidays.India(years=year); total_days=calendar.monthrange(year,month)[1]
-    return sum(1 for d in range(1,total_days+1) if datetime.date(year,month,d).weekday()>=5 or datetime.date(year,month,d) in india_holidays)
+    india_holidays = holidays.India(years=year)
+    total_days = calendar.monthrange(year, month)[1]
+    return sum(
+        1 for d in range(1, total_days + 1)
+        if datetime.date(year, month, d).weekday() >= 5
+        or datetime.date(year, month, d) in india_holidays
+    )
+
 
 def simulate_viral_score(product):
-    rng=np.random.default_rng(sum(ord(c) for c in product)); return int(rng.integers(30,90))
+    rng = np.random.default_rng(sum(ord(c) for c in product))
+    return int(rng.integers(30, 90))
 
+# ==============================
+# MODEL
+# ==============================
 @st.cache_data
 def load_data():
-    rng=np.random.default_rng(42)
-    df=pd.DataFrame({"holiday_count":rng.integers(0,10,100),"avg_temp":rng.integers(10,40,100),"viral_score":rng.integers(0,100,100)})
-    df["sales"]=200+df["holiday_count"]*50+df["avg_temp"]*10+df["viral_score"]*5
+    rng = np.random.default_rng(42)
+    df = pd.DataFrame({
+        "holiday_count": rng.integers(0, 10, 100),
+        "avg_temp": rng.integers(10, 40, 100),
+        "viral_score": rng.integers(0, 100, 100)
+    })
+    df["sales"] = (
+        200 + df["holiday_count"] * 50 + df["avg_temp"] * 10 + df["viral_score"] * 5
+    )
     return df
+
 
 @st.cache_resource
 def train_model(df):
-    model=RandomForestRegressor(n_estimators=250,max_depth=12,random_state=42)
-    model.fit(df[["holiday_count","avg_temp","viral_score"]],df["sales"]); return model
+    model = RandomForestRegressor(n_estimators=250, max_depth=12, random_state=42)
+    model.fit(df[["holiday_count", "avg_temp", "viral_score"]], df["sales"])
+    return model
 
-model=train_model(load_data())
 
+model = train_model(load_data())
+
+# ==============================
+# SIDEBAR
+# ==============================
 with st.sidebar:
     st.markdown("# 🚀 AIDP")
     st.caption("Demand Intelligence Platform")
     st.divider()
     if st.session_state.user:
         st.markdown(f"**{st.session_state.user.get('email','Business User')}**")
-        if st.button("Overview",use_container_width=True): st.session_state.page="dashboard"; st.rerun()
-        if st.button("Forecast",use_container_width=True): st.session_state.page="dashboard"; st.rerun()
-        if st.button("Settings",use_container_width=True): st.session_state.page="settings"; st.rerun()
+        if st.button("Overview", use_container_width=True):
+            st.session_state.page = "dashboard"
+            st.rerun()
+        if st.button("Forecast", use_container_width=True):
+            st.session_state.page = "dashboard"
+            st.rerun()
+        if st.button("Settings", use_container_width=True):
+            st.session_state.page = "settings"
+            st.rerun()
         st.divider()
-        if st.button("Sign out",use_container_width=True): st.session_state.user=None; st.session_state.page="welcome"; st.rerun()
+        if st.button("Sign out", use_container_width=True):
+            st.session_state.user = None
+            st.session_state.page = "welcome"
+            st.rerun()
     else:
-        st.markdown("### Built for modern retail"); st.caption("Forecast demand. Protect inventory. Make faster decisions.")
+        st.markdown("### Built for modern retail")
+        st.caption("Forecast demand. Protect inventory. Make faster decisions.")
 
+# ==============================
+# WELCOME
+# ==============================
 if st.session_state.page == "welcome":
-    st.markdown("<div class='hero'><div class='eyebrow'>AI-POWERED RETAIL INTELLIGENCE</div><h1>Turn market signals into smarter decisions.</h1><p>AIDP brings demand forecasting, inventory planning, weather context, holiday patterns and market pricing into one business workspace.</p></div>",unsafe_allow_html=True)
-    left,right=st.columns([1.35,.85],gap="large")
+    st.markdown("<div class='hero'><div class='eyebrow'>AI-POWERED RETAIL INTELLIGENCE</div><h1>Turn market signals into smarter decisions.</h1><p>AIDP brings demand forecasting, inventory planning, weather context, holiday patterns and market pricing into one business workspace.</p></div>", unsafe_allow_html=True)
+    left, right = st.columns([1.35,.85], gap="large")
     with left:
-        st.markdown("<div class='card'><span class='pill'>● SYSTEM READY</span><h2 style='margin-top:16px;'>One workspace. Smarter retail decisions.</h2><p style='color:#94a3b8;line-height:1.85;'>A customer-ready interface designed to move a business from reactive decisions to proactive demand planning.</p></div>",unsafe_allow_html=True)
-        a,b,c=st.columns(3); a.metric("Demand","AI Forecast"); b.metric("Inventory","+10% Buffer"); c.metric("Signals","Live Context")
+        st.markdown("<div class='card'><span class='pill'>● SYSTEM READY</span><h2 style='margin-top:16px;'>One workspace. Smarter retail decisions.</h2><p style='color:#94a3b8;line-height:1.85;'>A customer-ready interface designed to move a business from reactive decisions to proactive demand planning.</p></div>", unsafe_allow_html=True)
+        a,b,c = st.columns(3)
+        a.metric("Demand", "AI Forecast")
+        b.metric("Inventory", "+10% Buffer")
+        c.metric("Signals", "Live Context")
     with right:
-        st.markdown("<div class='card'><div class='eyebrow'>BUSINESS PORTAL</div><h2>Get started</h2><p style='color:#94a3b8;'>Create a workspace or sign in to access your intelligence console.</p></div>",unsafe_allow_html=True)
-        if st.button("Sign in to AIDP",use_container_width=True): st.session_state.page="login"; st.rerun()
-        if st.button("Create business account",use_container_width=True): st.session_state.page="signup"; st.rerun()
+        st.markdown("<div class='card'><div class='eyebrow'>BUSINESS PORTAL</div><h2>Get started</h2><p style='color:#94a3b8;'>Create a workspace or sign in to access your intelligence console.</p></div>", unsafe_allow_html=True)
+        if st.button("Sign in to AIDP", use_container_width=True):
+            st.session_state.page="login"; st.rerun()
+        if st.button("Create business account", use_container_width=True):
+            st.session_state.page="signup"; st.rerun()
 
+# ==============================
+# LOGIN
+# ==============================
 elif st.session_state.page == "login":
-    st.markdown("<div class='hero'><div class='eyebrow'>SECURE BUSINESS ACCESS</div><h1>Welcome back.</h1><p>Sign in to continue to your AIDP workspace.</p></div>",unsafe_allow_html=True)
+    st.markdown("<div class='hero'><div class='eyebrow'>SECURE BUSINESS ACCESS</div><h1>Welcome back.</h1><p>Sign in to continue to your AIDP workspace.</p></div>", unsafe_allow_html=True)
     with st.form("login_form"):
-        email=st.text_input("Business email"); password=st.text_input("Password",type="password")
-        if st.form_submit_button("Sign in",use_container_width=True):
+        email = st.text_input("Business email")
+        password = st.text_input("Password", type="password")
+        if st.form_submit_button("Sign in", use_container_width=True):
             user=login(email,password)
-            if user: st.session_state.user=user; st.session_state.page="dashboard"; st.rerun()
-            else: st.error("Invalid credentials.")
+            if user:
+                st.session_state.user=user; st.session_state.page="dashboard"; st.rerun()
+            else:
+                st.error("Invalid credentials.")
 
+# ==============================
+# SIGNUP
+# ==============================
 elif st.session_state.page == "signup":
-    st.markdown("<div class='hero'><div class='eyebrow'>BUSINESS ONBOARDING</div><h1>Build your intelligence workspace.</h1><p>Create your business profile and start using AIDP.</p></div>",unsafe_allow_html=True)
+    st.markdown("<div class='hero'><div class='eyebrow'>BUSINESS ONBOARDING</div><h1>Build your intelligence workspace.</h1><p>Create your business profile and start using AIDP.</p></div>", unsafe_allow_html=True)
     with st.form("signup_form"):
-        email=st.text_input("Business email"); password=st.text_input("Password",type="password"); gst=st.text_input("GST Number"); turnover=st.selectbox("Annual Turnover",["1–5 Lakh","5–10 Lakh","10–15 Lakh","15–50 Lakh","50 Lakh+"])
-        if st.form_submit_button("Create account",use_container_width=True):
-            if not email or not password or not gst: st.error("Please fill all required fields.")
+        email=st.text_input("Business email")
+        password=st.text_input("Password", type="password")
+        gst=st.text_input("GST Number")
+        turnover=st.selectbox("Annual Turnover", ["1–5 Lakh","5–10 Lakh","10–15 Lakh","15–50 Lakh","50 Lakh+"])
+        if st.form_submit_button("Create account", use_container_width=True):
+            if not email or not password or not gst:
+                st.error("Please fill all required fields.")
             else:
                 ok,msg=signup(email,password,gst,turnover)
-                if ok: st.success(msg); st.session_state.page="login"; st.rerun()
-                else: st.error(msg)
+                if ok:
+                    st.success(msg); st.session_state.page="login"; st.rerun()
+                else:
+                    st.error(msg)
 
+# ==============================
+# SETTINGS
+# ==============================
 elif st.session_state.page == "settings" and st.session_state.user:
+    st.markdown("<div class='hero'><div class='eyebrow'>WORKSPACE</div><h1>Business settings</h1><p>Manage the business information associated with your workspace.</p></div>", unsafe_allow_html=True)
     user=st.session_state.user
-    st.markdown("<div class='hero'><div class='eyebrow'>WORKSPACE</div><h1>Business settings</h1><p>Manage the business information associated with your workspace.</p></div>",unsafe_allow_html=True)
-    c1,c2,c3=st.columns(3); c1.metric("Account","Active"); c2.metric("Email",user.get("email","N/A")); c3.metric("Turnover",user.get("turnover","N/A"))
+    st.markdown("<div class='card'><div class='eyebrow'>ACCOUNT PROFILE</div><h2>Business details</h2></div>", unsafe_allow_html=True)
+    c1,c2,c3=st.columns(3)
+    c1.metric("Account","Active")
+    c2.metric("Email",user.get("email","N/A"))
+    c3.metric("Turnover",user.get("turnover","N/A"))
     st.info("AIDP demo authentication is active. SerpAPI is used for market-price intelligence.")
 
+# ==============================
+# DASHBOARD
+# ==============================
 elif st.session_state.page == "dashboard" and st.session_state.user:
-    st.markdown("<div class='hero'><div class='eyebrow'>LIVE INTELLIGENCE CONSOLE</div><h1>Good decisions start with good signals.</h1><p>Configure your context, read the market pulse, generate a demand forecast and translate it into an inventory action.</p></div>",unsafe_allow_html=True)
+    st.markdown("<div class='hero'><div class='eyebrow'>LIVE INTELLIGENCE CONSOLE</div><h1>Good decisions start with good signals.</h1><p>Configure your context, read the market pulse, generate a demand forecast and translate it into an inventory action.</p></div>", unsafe_allow_html=True)
+
     st.markdown("### Forecast setup")
     c1,c2,c3=st.columns([1.6,1,1])
-    with c1: product=st.text_input("Product",value=st.session_state.product)
-    with c2: city=st.text_input("City",value=st.session_state.city)
+    with c1:
+        product=st.text_input("Product", value=st.session_state.product)
+    with c2:
+        city=st.text_input("City", value=st.session_state.city)
     with c3:
-        months=list(calendar.month_name)[1:]; month_name=st.selectbox("Forecast month",months,index=months.index(st.session_state.month_name))
+        months=list(calendar.month_name)[1:]
+        month_name=st.selectbox("Forecast month", months, index=months.index(st.session_state.month_name))
     st.session_state.product,st.session_state.city,st.session_state.month_name=product,city,month_name
-    month=months.index(month_name)+1; year=datetime.datetime.now().year
-    holiday=get_holidays(year,month); temp=get_weather(city); viral=simulate_viral_score(product); price=fetch_product_price(product)
+
+    month=months.index(month_name)+1
+    year=datetime.datetime.now().year
+    holiday=get_holidays(year,month)
+    temp=get_weather(city)
+    viral=simulate_viral_score(product)
+    price=fetch_product_price(product)
 
     st.markdown("### Market pulse")
     k1,k2,k3,k4=st.columns(4)
@@ -173,33 +333,48 @@ elif st.session_state.page == "dashboard" and st.session_state.user:
     k4.markdown(f"<div class='kpi'><small>Market Price</small><strong>{price}</strong></div>",unsafe_allow_html=True)
 
     st.markdown("### Forecast engine")
-    if st.button("Generate AI forecast",use_container_width=True):
+    if st.button("Generate AI forecast", use_container_width=True):
         input_df=pd.DataFrame({"holiday_count":[holiday],"avg_temp":[temp],"viral_score":[viral]})
-        pred=float(model.predict(input_df)[0]); inventory=float(pred*1.10)
-        st.session_state.last_prediction={"pred":pred,"inventory":inventory,"product":product,"city":city,"month":month_name}
+        pred=float(model.predict(input_df)[0])
+        inventory=float(pred*1.10)
+        st.session_state.last_prediction={"pred":pred,"inventory":inventory}
 
     result=st.session_state.last_prediction
     if result:
         pred=result["pred"]; inventory=result["inventory"]
         r1,r2,r3=st.columns([1.1,1.1,1])
         with r1:
-            st.markdown("<div class='card'><div class='eyebrow'>AI FORECAST</div>",unsafe_allow_html=True); st.metric("Expected monthly demand",f"{int(pred):,}"); st.caption("Model-estimated sales for the selected context."); st.markdown("</div>",unsafe_allow_html=True)
+            st.markdown("<div class='card'><div class='eyebrow'>AI FORECAST</div>",unsafe_allow_html=True)
+            st.metric("Expected monthly demand", f"{int(pred):,}")
+            st.caption("Model-estimated sales for the selected business context.")
+            st.markdown("</div>",unsafe_allow_html=True)
         with r2:
-            st.markdown("<div class='card'><div class='eyebrow'>INVENTORY ACTION</div>",unsafe_allow_html=True); st.metric("Recommended inventory",f"{int(inventory):,}"); st.caption("Forecast plus a 10% planning buffer."); st.markdown("</div>",unsafe_allow_html=True)
+            st.markdown("<div class='card'><div class='eyebrow'>INVENTORY ACTION</div>",unsafe_allow_html=True)
+            st.metric("Recommended inventory", f"{int(inventory):,}")
+            st.caption("Forecast plus a 10% planning buffer.")
+            st.markdown("</div>",unsafe_allow_html=True)
         with r3:
-            st.markdown("<div class='card'><div class='eyebrow'>PRICE SIGNAL</div>",unsafe_allow_html=True); st.metric("Reference market price",price); st.caption("Live shopping-market reference from SerpAPI."); st.markdown("</div>",unsafe_allow_html=True)
+            st.markdown("<div class='card'><div class='eyebrow'>MARKET SIGNALS</div>",unsafe_allow_html=True)
+            st.metric("Market reference", price)
+            st.caption("Price reference from current shopping search results.")
+            st.markdown("</div>",unsafe_allow_html=True)
+
         st.markdown("### Decision view")
         chart_df=pd.DataFrame({"Metric":["Demand","Recommended inventory"],"Units":[pred,inventory]}).set_index("Metric")
-        st.bar_chart(chart_df,use_container_width=True)
+        st.bar_chart(chart_df, use_container_width=True)
+
         st.markdown("### AI recommendation")
-        if viral>=70: st.success("High demand momentum detected. Prioritize replenishment and monitor stock coverage closely.")
-        elif holiday>=8: st.info("Elevated holiday activity detected. Consider increasing availability before the forecast month.")
-        else: st.warning("Demand conditions appear relatively stable. Maintain the recommended inventory buffer and monitor movement.")
+        if viral >= 70:
+            st.success("High demand momentum detected. Prioritize replenishment and monitor stock coverage closely.")
+        elif holiday >= 8:
+            st.info("Elevated holiday activity detected. Consider increasing availability before the forecast month.")
+        else:
+            st.warning("Demand conditions appear relatively stable. Maintain the recommended inventory buffer and monitor movement.")
     else:
         st.markdown("<div class='card'><div class='eyebrow'>READY</div><h2>Generate your first forecast</h2><p style='color:#94a3b8;'>Choose a product, location and month above, then generate the forecast to unlock the decision view.</p></div>",unsafe_allow_html=True)
 
     st.markdown("### Business context")
     b1,b2,b3=st.columns(3)
     b1.info("**Inventory:** Use the forecast as a planning baseline, then adjust for supplier lead time and current stock.")
-    b2.info("**Pricing:** Market-price data is a reference signal, not a guaranteed optimized selling price.")
+    b2.info("**Pricing:** Market-price data is shown as a reference signal from shopping results.")
     b3.info("**External signals:** Weather and India holiday calendars are refreshed for the selected city/month.")
