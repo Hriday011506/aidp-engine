@@ -14,14 +14,8 @@ except ImportError:
 
 st.set_page_config(page_title="AIDP Engine", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
 
-# ==============================
-# CONFIG / SECRETS
-# ==============================
 SERPAPI_KEY = st.secrets.get("SERPAPI_KEY", "")
 
-# ==============================
-# SESSION
-# ==============================
 DEFAULTS = {
     "user": None,
     "page": "welcome",
@@ -35,9 +29,6 @@ for key, value in DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-# ==============================
-# PREMIUM UI
-# ==============================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -88,56 +79,58 @@ def login(email, password):
     return None
 
 # ==============================
-# MARKET DATA SERVICES
+# FAST MARKET PRICE LOOKUP
 # ==============================
 @st.cache_data(ttl=900, show_spinner=False)
 def fetch_product_price(product_name):
-    """One focused, cached SerpAPI request for a product's India shopping-price signal."""
+    """Fetch one focused India shopping result and cache it for 15 minutes."""
     product_name = product_name.strip()
     if not product_name or not SERPAPI_KEY or GoogleSearch is None:
         return None
 
     try:
         results = GoogleSearch({
-            "engine": "google_shopping",
-            "q": f"{product_name} price India",
+            "engine": "google_shopping_light",
+            "q": f"{product_name} price",
             "gl": "in",
             "hl": "en",
             "num": 8,
             "api_key": SERPAPI_KEY
         }).get_dict()
 
-        query_tokens = [t for t in product_name.lower().split() if len(t) > 2]
+        tokens = [t for t in product_name.lower().split() if len(t) > 2]
         candidates = []
 
         for item in results.get("shopping_results", []):
-            extracted = item.get("extracted_price")
-            if extracted is None:
-                continue
+            raw = item.get("extracted_price")
+            if raw is None:
+                raw = item.get("price")
             try:
-                numeric_price = float(extracted)
+                if isinstance(raw, str):
+                    raw = raw.replace(",", "").replace("₹", "").strip()
+                numeric = float(raw)
             except (TypeError, ValueError):
                 continue
-            if numeric_price <= 0:
+            if numeric <= 0:
                 continue
 
             title = str(item.get("title", "")).lower()
             source = str(item.get("source", "")).lower()
-            token_hits = sum(token in title for token in query_tokens)
-            score = token_hits * 3
+            hits = sum(token in title for token in tokens)
+            score = hits * 3
             if product_name.lower() in title:
-                score += 8
+                score += 10
             if "india" in title or "india" in source:
                 score += 1
-            candidates.append((score, numeric_price))
+            candidates.append((score, numeric))
 
         if not candidates:
             return None
 
-        candidates.sort(key=lambda x: x[0], reverse=True)
-        best_score = candidates[0][0]
-        best_prices = [p for score, p in candidates if score == best_score]
-        return float(np.median(best_prices[:5]))
+        candidates.sort(reverse=True)
+        top_score = candidates[0][0]
+        top_prices = [price for score, price in candidates if score == top_score]
+        return float(np.median(top_prices[:5]))
     except Exception:
         return None
 
@@ -191,9 +184,7 @@ def load_data():
         "avg_temp": rng.integers(10, 40, 100),
         "viral_score": rng.integers(0, 100, 100)
     })
-    df["sales"] = (
-        200 + df["holiday_count"] * 50 + df["avg_temp"] * 10 + df["viral_score"] * 5
-    )
+    df["sales"] = 200 + df["holiday_count"] * 50 + df["avg_temp"] * 10 + df["viral_score"] * 5
     return df
 
 
@@ -245,7 +236,7 @@ if st.session_state.page == "welcome":
     st.markdown("<div class='hero'><div class='eyebrow'>AI-POWERED RETAIL INTELLIGENCE</div><h1>Turn market signals into smarter decisions.</h1><p>AIDP brings demand forecasting, inventory planning, weather context, holiday patterns and market pricing into one business workspace.</p></div>", unsafe_allow_html=True)
     left, right = st.columns([1.35,.85], gap="large")
     with left:
-        st.markdown("<div class='card'><span class='pill'>● SYSTEM READY</span><h2 style='margin-top:16px;'>One workspace. Smarter retail decisions.</h2><p style='color:#94a3b8;line-height:1.85;'>A customer-ready interface designed to move a business from reactive decisions to proactive demand planning.</p></div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'><span class='pill'>● SYSTEM READY</span><h2 style='margin-top:16px;'>One workspace. Smarter retail decisions.</h2><p style='color:#94a3b8;line-height:1.85;'>A customer-ready interface designed to move your business from reactive decisions to proactive demand planning.</p></div>", unsafe_allow_html=True)
         a,b,c = st.columns(3)
         a.metric("Demand", "AI Forecast")
         b.metric("Inventory", "+10% Buffer")
@@ -274,7 +265,7 @@ elif st.session_state.page == "login":
                 st.session_state.page="dashboard"
                 st.rerun()
             else:
-                st.error("Invalid credentials or database unavailable.")
+                st.error("Invalid credentials.")
 
 # ==============================
 # SIGNUP
@@ -319,8 +310,10 @@ elif st.session_state.page == "dashboard" and st.session_state.user:
 
     st.markdown("### Forecast setup")
     c1,c2,c3=st.columns([1.6,1,1])
-    with c1: product=st.text_input("Product", value=st.session_state.product)
-    with c2: city=st.text_input("City", value=st.session_state.city)
+    with c1:
+        product=st.text_input("Product", value=st.session_state.product)
+    with c2:
+        city=st.text_input("City", value=st.session_state.city)
     with c3:
         months=list(calendar.month_name)[1:]
         month_name=st.selectbox("Forecast month", months, index=months.index(st.session_state.month_name))
@@ -328,73 +321,63 @@ elif st.session_state.page == "dashboard" and st.session_state.user:
 
     month=months.index(month_name)+1
     year=datetime.datetime.now().year
-
-    if "market_data" not in st.session_state:
-        st.session_state.market_data=None
-
-    if st.button("Refresh market data", use_container_width=True):
-        with st.spinner("Updating market signals…"):
-            st.session_state.market_data={
-                "holiday":get_holidays(year,month),
-                "temp":get_weather(city),
-                "viral":simulate_viral_score(product),
-                "price":fetch_product_price(product)
-            }
-
-    market=st.session_state.market_data
-    holiday=market["holiday"] if market else get_holidays(year,month)
-    temp=market["temp"] if market else 25.0
-    viral=market["viral"] if market else simulate_viral_score(product)
-    market_price=market["price"] if market else None
+    holiday=get_holidays(year,month)
+    temp=get_weather(city)
+    viral=simulate_viral_score(product)
 
     st.markdown("### Market pulse")
     k1,k2,k3,k4=st.columns(4)
     k1.markdown(f"<div class='kpi'><small>Temperature</small><strong>{temp:.1f}°C</strong></div>",unsafe_allow_html=True)
     k2.markdown(f"<div class='kpi'><small>Holiday Days</small><strong>{holiday}</strong></div>",unsafe_allow_html=True)
     k3.markdown(f"<div class='kpi'><small>Trend Score</small><strong>{viral}/100</strong></div>",unsafe_allow_html=True)
-    price_display=f"₹{market_price:,.2f}" if market_price is not None else "Refresh"
-    k4.markdown(f"<div class='kpi'><small>Market Price</small><strong>{price_display}</strong></div>",unsafe_allow_html=True)
+    current_price=st.session_state.get("current_price")
+    price_text=f"₹{current_price:,.2f}" if isinstance(current_price,(int,float)) else "Refresh"
+    k4.markdown(f"<div class='kpi'><small>Market Price</small><strong>{price_text}</strong></div>",unsafe_allow_html=True)
 
-    st.markdown("### Forecast engine")
-    if st.button("Generate AI forecast", use_container_width=True):
-        input_df=pd.DataFrame({"holiday_count":[holiday],"avg_temp":[temp],"viral_score":[viral]})
-        pred=float(model.predict(input_df)[0])
-        inventory=float(pred*1.10)
-        base_price=market_price if market_price is not None else 100.0
-        demand_factor=np.clip((pred-500)/5000,-0.10,0.15)
-        holiday_factor=np.clip(holiday/30,0,0.08)
-        trend_factor=np.clip((viral-50)/500,-0.05,0.10)
-        recommended_price=max(base_price*(1+demand_factor+holiday_factor+trend_factor),1.0)
-        st.session_state.last_prediction={
-            "pred":pred,
-            "inventory":inventory,
-            "recommended_price":float(recommended_price),
-            "market_price":market_price
-        }
+    price_col, forecast_col = st.columns([1,3])
+    with price_col:
+        if st.button("Refresh market price", use_container_width=True):
+            fresh_price = fetch_product_price(product)
+            if fresh_price is not None:
+                st.session_state.current_price = fresh_price
+                st.success(f"Market price updated: ₹{fresh_price:,.2f}")
+            else:
+                st.warning("No reliable shopping price found for this product. Try a more specific product name.")
+            st.rerun()
+    with forecast_col:
+        if st.button("Generate AI forecast", use_container_width=True):
+            input_df=pd.DataFrame({"holiday_count":[holiday],"avg_temp":[temp],"viral_score":[viral]})
+            pred=float(model.predict(input_df)[0])
+            inventory=float(pred*1.10)
+            market_price=st.session_state.get("current_price")
+            if isinstance(market_price,(int,float)):
+                optimized_price=float(market_price * (1 + np.clip((pred-300)/3000, -0.08, 0.08)))
+            else:
+                optimized_price=None
+            st.session_state.last_prediction={"pred":pred,"inventory":inventory,"optimized_price":optimized_price}
 
     result=st.session_state.last_prediction
     if result:
-        pred=result["pred"]
-        inventory=result["inventory"]
-        recommended_price=result["recommended_price"]
+        pred=result["pred"]; inventory=result["inventory"]; optimized_price=result.get("optimized_price")
         r1,r2,r3=st.columns([1.1,1.1,1])
         with r1:
             st.markdown("<div class='card'><div class='eyebrow'>AI FORECAST</div>",unsafe_allow_html=True)
-            st.metric("Expected monthly demand",f"{int(pred):,}")
-            st.caption("Model-estimated sales for the selected business context.")
+            st.metric("Expected monthly demand",f"{int(pred):,} units")
+            st.caption("Model-estimated demand from current business signals.")
             st.markdown("</div>",unsafe_allow_html=True)
         with r2:
             st.markdown("<div class='card'><div class='eyebrow'>INVENTORY ACTION</div>",unsafe_allow_html=True)
-            st.metric("Recommended inventory",f"{int(inventory):,}")
+            st.metric("Recommended stock",f"{int(inventory):,} units")
             st.caption("Forecast plus a 10% planning buffer.")
             st.markdown("</div>",unsafe_allow_html=True)
         with r3:
-            st.markdown("<div class='card'><div class='eyebrow'>PRICE GUIDANCE</div>",unsafe_allow_html=True)
-            st.metric("Suggested selling price",f"₹{recommended_price:,.2f}")
-            if market_price is not None:
-                st.caption(f"Market reference: ₹{market_price:,.2f}")
+            st.markdown("<div class='card'><div class='eyebrow'>PRICING GUIDANCE</div>",unsafe_allow_html=True)
+            if optimized_price is not None:
+                st.metric("Suggested selling price",f"₹{optimized_price:,.2f}")
+                st.caption("Reference price adjusted within an 8% demand-response band.")
             else:
-                st.caption("Uses ₹100 baseline until market data is refreshed.")
+                st.metric("Suggested selling price","Refresh price")
+                st.caption("Get a market price first to calculate pricing guidance.")
             st.markdown("</div>",unsafe_allow_html=True)
 
         st.markdown("### Decision view")
@@ -403,16 +386,16 @@ elif st.session_state.page == "dashboard" and st.session_state.user:
 
         st.markdown("### AI recommendation")
         if viral>=70:
-            st.success("High demand momentum detected. Prioritize replenishment and monitor stock coverage closely.")
+            st.success("High demand momentum detected. Increase replenishment readiness and review the suggested price before the forecast period.")
         elif holiday>=8:
-            st.info("Elevated holiday activity detected. Consider increasing availability before the forecast month.")
+            st.info("Elevated holiday activity detected. Consider holding additional stock ahead of the forecast month.")
         else:
             st.warning("Demand conditions appear relatively stable. Maintain the recommended inventory buffer and monitor movement.")
     else:
-        st.markdown("<div class='card'><div class='eyebrow'>READY</div><h2>Generate your first forecast</h2><p style='color:#94a3b8;'>Choose a product, city and forecast month above, refresh market data when needed, then generate the forecast.</p></div>",unsafe_allow_html=True)
+        st.markdown("<div class='card'><div class='eyebrow'>READY</div><h2>Generate your first forecast</h2><p style='color:#94a3b8;'>Choose a product, city and month above. Refresh the market price when needed, then generate the AI forecast.</p></div>",unsafe_allow_html=True)
 
     st.markdown("### Business context")
     b1,b2,b3=st.columns(3)
-    b1.info("**Inventory:** Use the forecast as a planning baseline and adjust for current stock and supplier lead time.")
-    b2.info("**Pricing:** Market-price data is a reference signal from shopping results.")
-    b3.info("**External signals:** Weather and India holiday calendars are refreshed for the selected location and month.")
+    b1.info("**Inventory:** Forecast is a planning baseline; adjust for current stock and supplier lead time.")
+    b2.info("**Pricing:** SerpAPI provides a market reference; AIDP applies a bounded demand-response adjustment.")
+    b3.info("**External signals:** Weather and India holiday calendars are refreshed for the selected location/month.")
