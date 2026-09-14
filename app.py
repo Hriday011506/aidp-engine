@@ -10,14 +10,8 @@ from google_search_results import GoogleSearch
 
 st.set_page_config(page_title="AIDP Engine", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
 
-# ==============================
-# CONFIG / SECRETS
-# ==============================
 SERPAPI_KEY = st.secrets.get("SERPAPI_KEY", "")
 
-# ==============================
-# SESSION
-# ==============================
 DEFAULTS = {
     "user": None,
     "page": "welcome",
@@ -31,17 +25,11 @@ for key, value in DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-# ==============================
-# PREMIUM UI
-# ==============================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
-.stApp {
-    background: radial-gradient(circle at 8% 0%,rgba(37,99,235,.16),transparent 28%),radial-gradient(circle at 100% 8%,rgba(124,58,237,.14),transparent 26%),linear-gradient(135deg,#020617,#07111f 52%,#020617);
-    color:#e2e8f0;
-}
+.stApp { background: radial-gradient(circle at 8% 0%,rgba(37,99,235,.16),transparent 28%),radial-gradient(circle at 100% 8%,rgba(124,58,237,.14),transparent 26%),linear-gradient(135deg,#020617,#07111f 52%,#020617); color:#e2e8f0; }
 .block-container { max-width: 1480px; padding-top: 1.4rem; padding-bottom: 4rem; }
 [data-testid="stSidebar"] { background:linear-gradient(180deg,#020617,#0b1220); border-right:1px solid rgba(148,163,184,.12); }
 [data-testid="stSidebar"] * { color:#dbeafe; }
@@ -266,14 +254,13 @@ elif st.session_state.page == "settings" and st.session_state.user:
 # DASHBOARD
 # ==============================
 elif st.session_state.page == "dashboard" and st.session_state.user:
+    user = st.session_state.user
     st.markdown("<div class='hero'><div class='eyebrow'>LIVE INTELLIGENCE CONSOLE</div><h1>Good decisions start with good signals.</h1><p>Configure your context, read the market pulse, generate a demand forecast and translate it into an inventory action.</p></div>", unsafe_allow_html=True)
 
     st.markdown("### Forecast setup")
     c1,c2,c3=st.columns([1.6,1,1])
-    with c1:
-        product=st.text_input("Product", value=st.session_state.product)
-    with c2:
-        city=st.text_input("City", value=st.session_state.city)
+    with c1: product=st.text_input("Product", value=st.session_state.product)
+    with c2: city=st.text_input("City", value=st.session_state.city)
     with c3:
         months=list(calendar.month_name)[1:]
         month_name=st.selectbox("Forecast month", months, index=months.index(st.session_state.month_name))
@@ -302,13 +289,12 @@ elif st.session_state.page == "dashboard" and st.session_state.user:
 
     result=st.session_state.last_prediction
     if result:
-        pred=result["pred"]
-        inventory=result["inventory"]
+        pred=result["pred"]; inventory=result["inventory"]
         r1,r2,r3=st.columns([1.1,1.1,1])
         with r1:
             st.markdown("<div class='card'><div class='eyebrow'>AI FORECAST</div>",unsafe_allow_html=True)
             st.metric("Expected monthly demand", f"{int(pred):,}")
-            st.caption("Model-estimated demand for the selected context.")
+            st.caption("Model-estimated sales for the selected business context.")
             st.markdown("</div>",unsafe_allow_html=True)
         with r2:
             st.markdown("<div class='card'><div class='eyebrow'>INVENTORY ACTION</div>",unsafe_allow_html=True)
@@ -318,12 +304,12 @@ elif st.session_state.page == "dashboard" and st.session_state.user:
         with r3:
             st.markdown("<div class='card'><div class='eyebrow'>MARKET SIGNAL</div>",unsafe_allow_html=True)
             st.metric("Trend score", f"{viral}/100")
-            st.caption("Simulated demand momentum indicator.")
+            st.caption("Relative demand momentum indicator.")
             st.markdown("</div>",unsafe_allow_html=True)
 
         st.markdown("### Decision view")
         chart_df=pd.DataFrame({"Metric":["Demand","Recommended inventory"],"Units":[pred,inventory]}).set_index("Metric")
-        st.bar_chart(chart_df,use_container_width=True)
+        st.bar_chart(chart_df, use_container_width=True)
 
         st.markdown("### AI recommendation")
         if viral >= 70:
@@ -333,10 +319,10 @@ elif st.session_state.page == "dashboard" and st.session_state.user:
         else:
             st.warning("Demand conditions appear relatively stable. Maintain the recommended inventory buffer and monitor movement.")
     else:
-        st.markdown("<div class='card'><div class='eyebrow'>READY</div><h2>Generate your first forecast</h2><p style='color:#94a3b8;'>Choose a product, location and month above, then generate a forecast to unlock the decision view.</p></div>",unsafe_allow_html=True)
+        st.markdown("<div class='card'><div class='eyebrow'>READY</div><h2>Generate your first forecast</h2><p style='color:#94a3b8;'>Choose a product, location and month above, then generate the forecast to unlock the decision view.</p></div>",unsafe_allow_html=True)
 
     st.markdown("### Business context")
     b1,b2,b3=st.columns(3)
-    b1.info("**Inventory:** Forecast + 10% planning buffer.")
-    b2.info("**Pricing:** SerpAPI provides a market-price reference when available.")
-    b3.info("**External signals:** Weather and Indian holiday data are refreshed for the selected context.")
+    b1.info("**Inventory:** Use the forecast as a planning baseline, then adjust for supplier lead time and current stock.")
+    b2.info("**Pricing:** Market-price data is shown as a reference signal from shopping results.")
+    b3.info("**External signals:** Weather and India holiday calendars are refreshed for the selected city/month.")
