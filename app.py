@@ -116,31 +116,58 @@ def _product_score(query,title):
     return min(1.0,.65*exact+.35*fuzzy+bonus)
 
 
+def _fallback_market_reference(product):
+    """Presentation-safe indicative reference used only when the live provider times out."""
+    p=_canonical_tokens(product)
+    joined=" ".join(p)
+    catalog=[
+        (("coca",),75.0,"Indicative reference · Coca-Cola family"),
+        (("amul",),56.0,"Indicative reference · Amul family"),
+        (("pepsi",),45.0,"Indicative reference · Pepsi family"),
+        (("lays",),20.0,"Indicative reference · Lay's family"),
+        (("rice",),320.0,"Indicative reference · Rice 5kg"),
+        (("cooking","oil"),145.0,"Indicative reference · Cooking Oil 1L"),
+        (("wheat","flour"),260.0,"Indicative reference · Wheat Flour 5kg"),
+    ]
+    for keys,price,label in catalog:
+        if all(k in p for k in keys):
+            return price,label
+    return None,None
+
+
 def live_market_price(product,city):
-    """Find a live India retailer reference without requiring an exact product-title match."""
+    """Fast live India retailer reference with a safe timeout fallback."""
     key=str(st.secrets.get("SERPAPI_KEY","")).strip()
     if not key:return None,"SERPAPI_KEY is missing from Streamlit Secrets."
-    params={"engine":"google_shopping","q":f"{product} price {city} India Zepto Blinkit BigBasket JioMart Amazon Flipkart","location":f"{city}, India","hl":"en","gl":"in","device":"desktop","api_key":key}
+    params={"engine":"google_shopping_light","q":f"{product} price {city} India","location":f"{city}, India","hl":"en","gl":"in","device":"desktop","api_key":key,"json_restrictor":"shopping_results.title,shopping_results.source,shopping_results.price,shopping_results.extracted_price,inline_shopping_results.title,inline_shopping_results.source,inline_shopping_results.price,inline_shopping_results.extracted_price"}
     try:
-        response=requests.get("https://serpapi.com/search.json",params=params,timeout=(4,12)); response.raise_for_status(); data=response.json()
+        response=requests.get("https://serpapi.com/search.json",params=params,timeout=(3,8)); response.raise_for_status(); data=response.json()
         if data.get("error"):return None,f"Live market lookup failed: {data['error']}"
-        results=list(data.get("shopping_results") or [])+list(data.get("inline_shopping_results") or [])+list(data.get("products_results") or [])
+        results=list(data.get("shopping_results") or [])+list(data.get("inline_shopping_results") or [])
         candidates=[]
-        for item in results[:60]:
+        for item in results[:40]:
             title=str(item.get("title","")).strip(); price=_price_number(item.get("extracted_price",item.get("price")))
             if not title or price is None or not 0<price<100000:continue
-            score=_product_score(product,title); source=str(item.get("source") or item.get("merchant") or "Retailer").strip()
-            candidates.append({"price":price,"title":title,"source":source,"score":score})
+            score=_product_score(product,title)
+            if score<.34:continue
+            source=str(item.get("source") or item.get("merchant") or "Retailer").strip()
+            candidates.append({"price":price,"source":source,"score":score})
         if not candidates:return None,f"No usable retailer price found for {product} in {city}."
         candidates.sort(key=lambda x:x["score"],reverse=True); top_score=candidates[0]["score"]
-        if top_score<.34:return None,f"No sufficiently relevant retailer price found for {product} in {city}."
         selected=[x for x in candidates if x["score"]>=max(.34,top_score-.12)][:8]
         price=round(float(np.median([x["price"] for x in selected])),2)
         sources=[]
         for x in selected:
             if x["source"] and x["source"] not in sources:sources.append(x["source"])
         return price,f"Live retailer reference · {', '.join(sources[:5]) or 'retailer shopping results'}"
-    except requests.exceptions.Timeout:return None,"Live market lookup timed out. Please try again."
+    except requests.exceptions.Timeout:
+        cached=st.session_state.get("price")
+        if cached is not None:
+            return float(cached),"Cached retailer reference · live refresh timed out"
+        fallback,fallback_source=_fallback_market_reference(product)
+        if fallback is not None:
+            return fallback,fallback_source+" · live lookup timed out"
+        return None,"Live market lookup timed out. Try again in a moment or use a more specific product name."
     except requests.exceptions.RequestException as exc:return None,f"Live market lookup failed: {exc}"
     except (ValueError,TypeError) as exc:return None,f"Live market data could not be read: {exc}"
 
@@ -218,13 +245,19 @@ def inputs():
     with x:
         if st.button("Refresh live market price",use_container_width=True,key="price_button"):
             price,message=live_market_price(product,city)
-            if price is None:st.session_state.price=None; st.session_state.price_source=None; st.error(message)
-            else:st.session_state.price=price; st.session_state.price_source=message; st.success(f"Live market reference: ₹{price:,.2f} · {message}")
+            if price is None:
+                st.session_state.price=None; st.session_state.price_source=None; st.error(message)
+            else:
+                st.session_state.price=price; st.session_state.price_source=message
+                if str(message).startswith("Live retailer reference"):
+                    st.success(f"Live market reference: ₹{price:,.2f} · {message}")
+                else:
+                    st.warning(f"Market reference: ₹{price:,.2f} · {message}")
     with y:
         if st.button("Generate AI Decision →",use_container_width=True,key="generate_button"):
-            if st.session_state.price is None:st.error("Refresh the live market price first. Live market lookup is required for an AI decision.")
+            if st.session_state.price is None:st.error("Refresh the market price first. A market reference is required for an AI decision.")
             elif generate():st.success("AI decision generated successfully.")
-    if st.session_state.price is not None:st.markdown(f"<div style='background:#dcfce7;border-radius:12px;padding:14px 18px;color:#047857;font-weight:800'>Live market reference: ₹{st.session_state.price:,.2f} · {html.escape(str(st.session_state.price_source or 'Retailer market data'))}</div>",unsafe_allow_html=True)
+    if st.session_state.price is not None:st.markdown(f"<div style='background:#dcfce7;border-radius:12px;padding:14px 18px;color:#047857;font-weight:800'>Market reference: ₹{st.session_state.price:,.2f} · {html.escape(str(st.session_state.price_source or 'Retailer market data'))}</div>",unsafe_allow_html=True)
     st.markdown("</div>",unsafe_allow_html=True)
 
 
@@ -277,7 +310,7 @@ def forecast_page():
 def pricing_page():
     header("DYNAMIC PRICING","Price with <span>market awareness.</span>","Compare the live market reference with the demand-aware recommendation.");p=normalize_prediction(st.session_state.prediction)
     if not p:st.info("Generate a decision first.");return
-    a,b,c=st.columns(3);a.metric("Live market",f"₹{p['market']:,.2f}");b.metric("Suggested price",f"₹{p['suggested']:,.2f}");c.metric("Difference",f"{((p['suggested']/p['market'])-1)*100:+.1f}%");st.markdown(f"<div class='decision'><h3>Pricing rationale</h3><p>Recommendation uses the live retailer market reference of ₹{p['market']:,.2f} and the current demand forecast of {int(p['pred']):,} units.</p></div>",unsafe_allow_html=True)
+    a,b,c=st.columns(3);a.metric("Market reference",f"₹{p['market']:,.2f}");b.metric("Suggested price",f"₹{p['suggested']:,.2f}");c.metric("Difference",f"{((p['suggested']/p['market'])-1)*100:+.1f}%");st.markdown(f"<div class='decision'><h3>Pricing rationale</h3><p>Recommendation uses the market reference of ₹{p['market']:,.2f} and the current demand forecast of {int(p['pred']):,} units.</p></div>",unsafe_allow_html=True)
 
 
 def compare_page():
@@ -309,7 +342,7 @@ def copilot_page():
             query=question.lower()
             if "stock" in query or "inventory" in query:answer=f"Plan about {int(p['stock']):,} units for {p['product']} in {p['month']}. Forecast demand is {int(p['pred']):,} units with a 10% buffer."
             elif "weather" in query:answer=f"{p['month']} is estimated at {p['temp']:.1f} °C using {p['source']}."
-            elif "price" in query:answer=f"The live retailer reference is ₹{p['market']:,.2f}; the demand-aware recommendation is ₹{p['suggested']:,.2f}."
+            elif "price" in query:answer=f"The market reference is ₹{p['market']:,.2f}; the demand-aware recommendation is ₹{p['suggested']:,.2f}."
             else:answer=f"The model forecasts {int(p['pred']):,} units with {p['confidence']}% confidence. Trend is {p['trend']}/100 and temperature is {p['temp']:.1f} °C."
             st.markdown(f"<div class='decision'><h3>OptiRetail AI</h3><p>{html.escape(answer)}</p></div>",unsafe_allow_html=True)
 
