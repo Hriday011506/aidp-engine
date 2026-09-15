@@ -14,8 +14,15 @@ except ImportError:
 
 st.set_page_config(page_title="AIDP Engine", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
 
+# ==============================
+# CONFIG / SECRETS
+# ==============================
 SERPAPI_KEY = st.secrets.get("SERPAPI_KEY", "")
+# MongoDB can be re-added later through Streamlit Secrets without exposing it in GitHub.
 
+# ==============================
+# SESSION
+# ==============================
 DEFAULTS = {
     "user": None,
     "page": "welcome",
@@ -29,6 +36,9 @@ for key, value in DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
+# ==============================
+# PREMIUM UI
+# ==============================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -83,11 +93,10 @@ def login(email, password):
 # ==============================
 @st.cache_data(ttl=900, show_spinner=False)
 def fetch_product_price(product_name):
-    """Fetch one focused India shopping result and cache it for 15 minutes."""
+    """One focused, cached SerpAPI shopping-price request."""
     product_name = product_name.strip()
     if not product_name or not SERPAPI_KEY or GoogleSearch is None:
         return None
-
     try:
         results = GoogleSearch({
             "engine": "google_shopping_light",
@@ -100,11 +109,8 @@ def fetch_product_price(product_name):
 
         tokens = [t for t in product_name.lower().split() if len(t) > 2]
         candidates = []
-
         for item in results.get("shopping_results", []):
-            raw = item.get("extracted_price")
-            if raw is None:
-                raw = item.get("price")
+            raw = item.get("extracted_price", item.get("price"))
             try:
                 if isinstance(raw, str):
                     raw = raw.replace(",", "").replace("₹", "").strip()
@@ -113,24 +119,18 @@ def fetch_product_price(product_name):
                 continue
             if numeric <= 0:
                 continue
-
             title = str(item.get("title", "")).lower()
             source = str(item.get("source", "")).lower()
             hits = sum(token in title for token in tokens)
-            score = hits * 3
-            if product_name.lower() in title:
-                score += 10
-            if "india" in title or "india" in source:
-                score += 1
+            score = hits * 3 + (10 if product_name.lower() in title else 0) + (1 if "india" in title or "india" in source else 0)
             candidates.append((score, numeric))
 
         if not candidates:
             return None
-
         candidates.sort(reverse=True)
-        top_score = candidates[0][0]
-        top_prices = [price for score, price in candidates if score == top_score]
-        return float(np.median(top_prices[:5]))
+        best_score = candidates[0][0]
+        best_prices = [price for score, price in candidates if score == best_score]
+        return float(np.median(best_prices[:5]))
     except Exception:
         return None
 
@@ -198,7 +198,6 @@ def train_model(df):
     )
     model.fit(df[["holiday_count", "avg_temp", "viral_score"]], df["sales"])
     return model
-
 
 model = train_model(load_data())
 
