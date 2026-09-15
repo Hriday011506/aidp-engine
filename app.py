@@ -18,12 +18,7 @@ try:
 except ImportError:
     GoogleSearch = None
 
-st.set_page_config(
-    page_title="OptiRetail AI",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+st.set_page_config(page_title="OptiRetail AI", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 
 
 def secret(name, default=""):
@@ -37,24 +32,14 @@ def secret(name, default=""):
 SERPAPI_KEY = secret("SERPAPI_KEY")
 
 DEFAULTS = {
-    "user": None,
-    "local_users": {},
-    "page": "welcome",
-    "product": "Wheat Flour",
-    "city": "Jaipur",
-    "month_name": dt.datetime.now().strftime("%B"),
-    "last_prediction": None,
-    "current_price": None,
-    "market_data": None,
-    "saved_analyses": [],
-    "forecast_table": None,
-    "compare_result": None,
+    "user": None, "local_users": {}, "page": "welcome", "product": "Wheat Flour", "city": "Jaipur",
+    "month_name": dt.datetime.now().strftime("%B"), "last_prediction": None, "current_price": None,
+    "market_data": None, "saved_analyses": [], "forecast_table": None, "compare_result": None,
 }
 for key, value in DEFAULTS.items():
     st.session_state.setdefault(key, value)
 
-st.markdown(
-    """
+st.markdown("""
 <style>
 :root{--ink:#10231f;--muted:#64748b;--green:#079568;--green2:#056b4c;--line:#dcebe5}
 html,body,[class*="css"]{font-family:Arial,sans-serif;color:var(--ink)}
@@ -75,9 +60,7 @@ div[data-testid="stTextInput"] input::placeholder,div[data-testid="stNumberInput
 label,div[data-testid="stWidgetLabel"] p{color:#334155!important;font-weight:600!important}div[data-baseweb="select"] span{color:#0f172a!important}
 .stButton>button,.stFormSubmitButton>button{border:0!important;border-radius:12px!important;min-height:44px!important;font-weight:800!important;background:linear-gradient(135deg,#079568,#047a55)!important;color:#fff!important}
 </style>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
 
 def password_hash(value):
@@ -88,12 +71,7 @@ def save_local_user(email, password, gst, turnover):
     email = email.strip().lower()
     if email in st.session_state.local_users:
         return False, "An account with this email already exists in this session."
-    st.session_state.local_users[email] = {
-        "email": email,
-        "password_hash": password_hash(password),
-        "gst": gst.strip(),
-        "turnover": turnover,
-    }
+    st.session_state.local_users[email] = {"email": email, "password_hash": password_hash(password), "gst": gst.strip(), "turnover": turnover}
     return True, "Account created successfully."
 
 
@@ -114,14 +92,7 @@ def fetch_price(product):
     if not product.strip() or not SERPAPI_KEY or GoogleSearch is None:
         return None
     try:
-        result = GoogleSearch({
-            "engine": "google_shopping_light",
-            "q": f"{product} price",
-            "gl": "in",
-            "hl": "en",
-            "num": 8,
-            "api_key": SERPAPI_KEY,
-        }).get_dict()
+        result = GoogleSearch({"engine":"google_shopping_light","q":f"{product} price","gl":"in","hl":"en","num":8,"api_key":SERPAPI_KEY}).get_dict()
         values = []
         for item in result.get("shopping_results", []):
             try:
@@ -141,11 +112,7 @@ def fetch_price(product):
 @st.cache_data(ttl=3600, show_spinner=False)
 def geocode_city(city):
     try:
-        response = requests.get(
-            "https://geocoding-api.open-meteo.com/v1/search",
-            params={"name": city, "count": 1, "language": "en", "format": "json"},
-            timeout=8,
-        )
+        response = requests.get("https://geocoding-api.open-meteo.com/v1/search", params={"name":city,"count":1,"language":"en","format":"json"}, timeout=8)
         response.raise_for_status()
         hits = response.json().get("results", [])
         if hits:
@@ -159,16 +126,11 @@ def fallback_monthly_weather(latitude):
     base = 25.0
     amplitude = min(12.0, 7.0 + abs(float(latitude)) * 0.12)
     phase = 5 if float(latitude) >= 0 else 11
-    values = {}
-    for month in range(1, 13):
-        seasonal = amplitude * np.cos((month - phase) * 2 * np.pi / 12)
-        values[calendar.month_name[month]] = round(base + seasonal, 1)
-    return values
+    return {calendar.month_name[m]: round(base + amplitude * np.cos((m-phase)*2*np.pi/12), 1) for m in range(1,13)}
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def monthly_weather(city):
-    """Return city-specific monthly historical average temperatures."""
     coords = geocode_city(city)
     if not coords:
         return None
@@ -176,54 +138,35 @@ def monthly_weather(city):
     end_year = dt.datetime.now().year - 1
     start_year = end_year - 4
     try:
-        response = requests.get(
-            "https://archive-api.open-meteo.com/v1/archive",
-            params={
-                "latitude": lat,
-                "longitude": lon,
-                "start_date": f"{start_year}-01-01",
-                "end_date": f"{end_year}-12-31",
-                "daily": "temperature_2m_mean",
-                "timezone": "auto",
-            },
-            timeout=15,
-        )
+        response = requests.get("https://archive-api.open-meteo.com/v1/archive", params={
+            "latitude":lat,"longitude":lon,"start_date":f"{start_year}-01-01","end_date":f"{end_year}-12-31",
+            "daily":"temperature_2m_mean","timezone":"auto"}, timeout=15)
         response.raise_for_status()
         payload = response.json()
-        dates = payload.get("daily", {}).get("time", [])
-        temps = payload.get("daily", {}).get("temperature_2m_mean", [])
-        frame = pd.DataFrame({"date": pd.to_datetime(dates), "temperature": temps}).dropna()
+        frame = pd.DataFrame({"date":pd.to_datetime(payload.get("daily",{}).get("time",[])),"temperature":payload.get("daily",{}).get("temperature_2m_mean",[])}).dropna()
         if not frame.empty:
             frame["month"] = frame["date"].dt.month
             monthly = frame.groupby("month")["temperature"].mean().to_dict()
-            values = {calendar.month_name[m]: round(float(monthly.get(m, 25.0)), 1) for m in range(1, 13)}
-            return {"city": resolved_name, "lat": lat, "lon": lon, "values": values, "source": "5-year historical monthly average"}
+            values = {calendar.month_name[m]: round(float(monthly.get(m,25.0)),1) for m in range(1,13)}
+            return {"city":resolved_name,"lat":lat,"lon":lon,"values":values,"source":"5-year historical monthly average"}
     except Exception:
         pass
-    return {"city": resolved_name, "lat": lat, "lon": lon, "values": fallback_monthly_weather(lat), "source": "seasonal fallback"}
+    return {"city":resolved_name,"lat":lat,"lon":lon,"values":fallback_monthly_weather(lat),"source":"seasonal fallback"}
 
 
 def holiday_count(year, month):
     india = holidays.India(years=year) if holidays else set()
-    return sum(
-        1
-        for day in range(1, calendar.monthrange(year, month)[1] + 1)
-        if dt.date(year, month, day).weekday() >= 5 or dt.date(year, month, day) in india
-    )
+    return sum(1 for day in range(1,calendar.monthrange(year,month)[1]+1) if dt.date(year,month,day).weekday() >= 5 or dt.date(year,month,day) in india)
 
 
 @st.cache_resource(show_spinner=False)
 def train_model():
     rng = np.random.default_rng(42)
-    data = pd.DataFrame({
-        "holiday_count": rng.integers(0, 12, 500),
-        "avg_temp": rng.uniform(10, 40, 500),
-        "viral_score": rng.integers(0, 100, 500),
-    })
-    seasonal = np.maximum(0, 22 - np.abs(data["avg_temp"] - 28))
-    data["sales"] = 180 + data["holiday_count"] * 42 + data["viral_score"] * 4.8 + seasonal * 11 + rng.normal(0, 25, 500)
-    model = RandomForestRegressor(n_estimators=250, max_depth=12, min_samples_leaf=2, random_state=42, n_jobs=-1)
-    model.fit(data[["holiday_count", "avg_temp", "viral_score"]], data["sales"])
+    data = pd.DataFrame({"holiday_count":rng.integers(0,12,500),"avg_temp":rng.uniform(10,40,500),"viral_score":rng.integers(0,100,500)})
+    seasonal = np.maximum(0,22-np.abs(data["avg_temp"]-28))
+    data["sales"] = 180 + data["holiday_count"]*42 + data["viral_score"]*4.8 + seasonal*11 + rng.normal(0,25,500)
+    model = RandomForestRegressor(n_estimators=250,max_depth=12,min_samples_leaf=2,random_state=42,n_jobs=-1)
+    model.fit(data[["holiday_count","avg_temp","viral_score"]],data["sales"])
     return model
 
 
@@ -234,424 +177,287 @@ def build_forecast(product, city, trend_override=None, weather_override=None):
     months = list(calendar.month_name)[1:]
     weather = monthly_weather(city)
     if weather:
-        temps = weather["values"].copy()
-        resolved_city = weather["city"]
-        weather_source = weather["source"]
+        temps, resolved_city, weather_source = weather["values"].copy(), weather["city"], weather["source"]
     else:
-        temps = fallback_monthly_weather(20.0)
-        resolved_city = city
-        weather_source = "seasonal fallback"
+        temps, resolved_city, weather_source = fallback_monthly_weather(20.0), city, "seasonal fallback"
     trend = int(trend_override if trend_override is not None else trend_score(product))
     year = dt.datetime.now().year
     rows = []
-    for month_num, month_name in enumerate(months, start=1):
-        temp = float(weather_override if weather_override is not None else temps.get(month_name, 25.0))
-        holiday = holiday_count(year, month_num)
-        features = pd.DataFrame({"holiday_count": [holiday], "avg_temp": [temp], "viral_score": [trend]})
-        demand = float(max(0, model.predict(features)[0]))
-        rows.append({"Month": month_name, "Temperature (°C)": round(temp, 1), "Holiday days": holiday, "Trend score": trend, "Forecast demand": round(demand)})
+    for month_num, month_name in enumerate(months,1):
+        temp = float(weather_override if weather_override is not None else temps.get(month_name,25.0))
+        holiday = holiday_count(year,month_num)
+        features = pd.DataFrame({"holiday_count":[holiday],"avg_temp":[temp],"viral_score":[trend]})
+        demand = float(max(0,model.predict(features)[0]))
+        rows.append({"Month":month_name,"Temperature (°C)":round(temp,1),"Holiday days":holiday,"Trend score":trend,"Forecast demand":round(demand)})
     return pd.DataFrame(rows), resolved_city, weather_source
 
 
 def generate_decision(product, city, month_name):
-    table, resolved_city, weather_source = build_forecast(product, city)
-    match = table.loc[table["Month"] == month_name]
+    table, resolved_city, weather_source = build_forecast(product,city)
+    match = table.loc[table["Month"]==month_name]
     row = match.iloc[0] if not match.empty else table.iloc[0]
     market = st.session_state.current_price
     predicted = float(row["Forecast demand"])
-    suggested = float(market * (1 + np.clip((predicted - 300) / 3000, -0.08, 0.08))) if isinstance(market, (int, float, np.integer, np.floating)) else None
-    prediction = {
-        "pred": predicted,
-        "stock": float(np.ceil(predicted * 1.10)),
-        "suggested": suggested,
-        "temp": float(row["Temperature (°C)"]),
-        "holiday": int(row["Holiday days"]),
-        "trend": int(row["Trend score"]),
-        "market": market,
-        "product": product,
-        "city": resolved_city,
-        "month": str(row["Month"]),
-        "weather_source": weather_source,
-    }
+    suggested = float(market*(1+np.clip((predicted-300)/3000,-0.08,0.08))) if isinstance(market,(int,float,np.integer,np.floating)) else None
+    prediction = {"pred":predicted,"stock":float(np.ceil(predicted*1.10)),"suggested":suggested,"temp":float(row["Temperature (°C)"]),"holiday":int(row["Holiday days"]),"trend":int(row["Trend score"]),"market":market,"product":product,"city":resolved_city,"month":str(row["Month"]),"weather_source":weather_source}
     st.session_state.forecast_table = table
     st.session_state.last_prediction = prediction
-    st.session_state.saved_analyses.insert(0, prediction.copy())
+    st.session_state.saved_analyses.insert(0,prediction.copy())
     return prediction
 
 
-def render_header(eyebrow, title, subtitle):
-    st.markdown(f"<div class='hero'><div class='eyebrow'>{eyebrow}</div><h1>{title}</h1><p>{subtitle}</p></div>", unsafe_allow_html=True)
+def render_header(eyebrow,title,subtitle):
+    st.markdown(f"<div class='hero'><div class='eyebrow'>{eyebrow}</div><h1>{title}</h1><p>{subtitle}</p></div>",unsafe_allow_html=True)
 
 
 def render_analysis_inputs():
-    st.markdown("<div class='card'><div class='eyebrow'>ANALYSIS INPUTS</div><h3>Choose product, location and forecast month</h3>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1.5, 1, 1])
+    st.markdown("<div class='card'><div class='eyebrow'>ANALYSIS INPUTS</div><h3>Choose product, location and forecast month</h3>",unsafe_allow_html=True)
+    c1,c2,c3 = st.columns([1.5,1,1])
     months = list(calendar.month_name)[1:]
     with c1:
-        product = st.text_input("Product", value=st.session_state.product, placeholder="e.g. Amul Taaza Milk 1L", key="analysis_product")
+        product = st.text_input("Product",value=st.session_state.product,placeholder="e.g. Amul Taaza Milk 1L",key="analysis_product")
     with c2:
-        city = st.text_input("City", value=st.session_state.city, placeholder="Jaipur", key="analysis_city")
+        city = st.text_input("City",value=st.session_state.city,placeholder="Jaipur",key="analysis_city")
     with c3:
         current_month = st.session_state.month_name if st.session_state.month_name in months else months[0]
-        month_name = st.selectbox("Forecast month", months, index=months.index(current_month), key="analysis_month")
-    st.session_state.product = product.strip() or "Wheat Flour"
-    st.session_state.city = city.strip() or "Jaipur"
-    st.session_state.month_name = month_name
-    a, b = st.columns(2)
+        month_name = st.selectbox("Forecast month",months,index=months.index(current_month),key="analysis_month")
+    new_product = product.strip() or "Wheat Flour"
+    new_city = city.strip() or "Jaipur"
+    old_prediction = st.session_state.get("last_prediction") or {}
+    inputs_changed = bool(old_prediction) and (old_prediction.get("product") != new_product or old_prediction.get("city") != new_city or old_prediction.get("month") != month_name)
+    st.session_state.product, st.session_state.city, st.session_state.month_name = new_product, new_city, month_name
+    if inputs_changed:
+        st.session_state.last_prediction = None
+        st.session_state.forecast_table = None
+        st.session_state.current_price = None
+        st.session_state.market_data = None
+        st.info("Inputs changed. Generate a new AI decision to update the result for the selected product.")
+    a,b = st.columns(2)
     with a:
-        if st.button("Refresh market price", use_container_width=True, key="refresh_price"):
+        if st.button("Refresh market price",use_container_width=True,key="refresh_price"):
             data = fetch_price(st.session_state.product)
             st.session_state.market_data = data
             st.session_state.current_price = data["price"] if data else None
-            if data:
-                st.success(f"Market reference: ₹{data['price']:,.2f}")
-            else:
-                st.warning("No market price found. Add SERPAPI_KEY or use a more specific product name.")
+            if data: st.success(f"Market reference: ₹{data['price']:,.2f}")
+            else: st.warning("No market price found. Add SERPAPI_KEY or use a more specific product name.")
     with b:
-        if st.button("Generate AI Decision →", use_container_width=True, key="generate_decision"):
-            prediction = generate_decision(st.session_state.product, st.session_state.city, st.session_state.month_name)
-            st.success(f"Forecast generated for {prediction['month']} using city-specific monthly weather.")
-    st.markdown("</div>", unsafe_allow_html=True)
+        if st.button("Generate AI Decision →",use_container_width=True,key="generate_decision"):
+            prediction = generate_decision(st.session_state.product,st.session_state.city,st.session_state.month_name)
+            st.success(f"Forecast generated for {prediction['product']} · {prediction['month']} using city-specific monthly weather.")
+            st.rerun()
+    st.markdown("</div>",unsafe_allow_html=True)
 
 
 def render_dashboard():
     lp = st.session_state.get("last_prediction") or {}
     current = st.session_state.get("current_price")
     suggested = lp.get("suggested")
-    current_text = f"₹{current:,.2f}" if isinstance(current, (int, float)) else "—"
-    k1, k2, k3, k4 = st.columns(4)
-    k1.markdown(f"<div class='kpi'><small>Forecasted demand</small><strong>{int(lp.get('pred', 0)):,} units</strong><span>{lp.get('month', 'Selected month')}</span></div>", unsafe_allow_html=True)
-    k2.markdown(f"<div class='kpi'><small>Recommended stock</small><strong>{int(lp.get('stock', 0)):,} units</strong><span>10% planning buffer</span></div>", unsafe_allow_html=True)
-    k3.markdown(f"<div class='kpi'><small>Market reference</small><strong>{current_text}</strong><span>Shopping market signal</span></div>", unsafe_allow_html=True)
-    k4.markdown(f"<div class='kpi'><small>Suggested price</small><strong>{f'₹{suggested:,.2f}' if isinstance(suggested, (int, float)) else '—'}</strong><span>Demand-aware recommendation</span></div>", unsafe_allow_html=True)
+    current_text = f"₹{current:,.2f}" if isinstance(current,(int,float)) else "—"
+    k1,k2,k3,k4 = st.columns(4)
+    k1.markdown(f"<div class='kpi'><small>Forecasted demand</small><strong>{int(lp.get('pred',0)):,} units</strong><span>{lp.get('month','Selected month')}</span></div>",unsafe_allow_html=True)
+    k2.markdown(f"<div class='kpi'><small>Recommended stock</small><strong>{int(lp.get('stock',0)):,} units</strong><span>10% planning buffer</span></div>",unsafe_allow_html=True)
+    k3.markdown(f"<div class='kpi'><small>Market reference</small><strong>{current_text}</strong><span>Shopping market signal</span></div>",unsafe_allow_html=True)
+    k4.markdown(f"<div class='kpi'><small>Suggested price</small><strong>{f'₹{suggested:,.2f}' if isinstance(suggested,(int,float)) else '—'}</strong><span>Demand-aware recommendation</span></div>",unsafe_allow_html=True)
     table = st.session_state.get("forecast_table")
     if table is None:
         st.info("Go to Product Analysis and generate an AI decision to populate the dashboard.")
         return
-    left, right = st.columns([1.55, 1])
+    left,right = st.columns([1.55,1])
     with left:
-        st.markdown("<div class='card'><div class='eyebrow'>DEMAND FORECAST</div><h3>12-month demand outlook</h3><p class='small'>Forecast changes month-by-month using monthly weather, holidays and product trend signals.</p>", unsafe_allow_html=True)
-        st.line_chart(table.set_index("Month")[["Forecast demand"]], height=340)
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'><div class='eyebrow'>DEMAND FORECAST</div><h3>12-month demand outlook</h3><p class='small'>Forecast changes month-by-month using monthly weather, holidays and product trend signals.</p>",unsafe_allow_html=True)
+        st.line_chart(table.set_index("Month")[["Forecast demand"]],height=340)
+        st.markdown("</div>",unsafe_allow_html=True)
     with right:
-        st.markdown("<div class='card'><div class='eyebrow'>AI DECISION</div><h3>Selected month signals</h3>", unsafe_allow_html=True)
-        for name, value in [
-            ("Product", lp.get("product", "—")), ("City", lp.get("city", "—")),
-            ("Weather", f"{float(lp.get('temp', 25)):.1f} °C"), ("Holiday days", str(lp.get("holiday", 0))),
-            ("Trend score", f"{lp.get('trend', 0)}/100"), ("Weather data", lp.get("weather_source", "—")),
-        ]:
-            st.markdown(f"<div class='signal'><b>{name}</b><span>{value}</span></div>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-        temp = float(lp.get("temp", 25))
-        if temp >= 32:
-            action = "Higher temperature detected — consider extra safety stock for heat-sensitive products."
-        elif temp <= 18:
-            action = "Cooler weather detected — keep inventory conservative for weather-sensitive categories."
-        else:
-            action = "Moderate weather; holiday and product-trend signals are driving the recommendation."
-        st.markdown(f"<div class='decision'><h3>Recommended action</h3><p>{action}</p></div>", unsafe_allow_html=True)
-
-    st.markdown("<div class='card'><div class='eyebrow'>BUSINESS IMPACT</div><h3>Revenue & inventory outlook</h3>", unsafe_allow_html=True)
-    price_for_revenue = current if isinstance(current, (int, float)) else suggested
-    annual_revenue = float(table["Forecast demand"].sum()) * float(price_for_revenue) if isinstance(price_for_revenue, (int, float)) else None
-    total_stock = int(np.ceil(table["Forecast demand"].sum() * 1.10))
-    peak_idx = table["Forecast demand"].idxmax()
-    peak_month = str(table.loc[peak_idx, "Month"])
-    peak_demand = int(table.loc[peak_idx, "Forecast demand"])
-    r1, r2, r3 = st.columns(3)
-    r1.metric("Projected 12-month revenue", f"₹{annual_revenue:,.0f}" if annual_revenue is not None else "Set market price")
-    r2.metric("Planned stock capacity", f"{total_stock:,} units")
-    r3.metric("Peak demand month", f"{peak_month} · {peak_demand:,} units")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown("<div class='card'><div class='eyebrow'>AUTOMATED INSIGHTS</div><h3>What to watch</h3>", unsafe_allow_html=True)
-    min_row = table.loc[table["Forecast demand"].idxmin()]
-    max_temp_row = table.loc[table["Temperature (°C)"].idxmax()]
-    st.markdown(
-        f"<div class='signal'><b>Peak demand</b><span>{peak_month} · {peak_demand:,} units</span></div>"
-        f"<div class='signal'><b>Lowest demand</b><span>{min_row['Month']} · {int(min_row['Forecast demand']):,} units</span></div>"
-        f"<div class='signal'><b>Warmest month</b><span>{max_temp_row['Month']} · {float(max_temp_row['Temperature (°C)']):.1f} °C</span></div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'><div class='eyebrow'>AI DECISION</div><h3>Selected month signals</h3>",unsafe_allow_html=True)
+        for name,value in [("Product",lp.get("product","—")),("City",lp.get("city","—")),("Weather",f"{float(lp.get('temp',25)):.1f} °C"),("Holiday days",str(lp.get("holiday",0))),("Trend score",f"{lp.get('trend',0)}/100"),("Weather data",lp.get("weather_source","—"))]:
+            st.markdown(f"<div class='signal'><b>{name}</b><span>{value}</span></div>",unsafe_allow_html=True)
+        st.markdown("</div>",unsafe_allow_html=True)
+        temp = float(lp.get("temp",25))
+        action = "Higher temperature detected — consider extra safety stock for heat-sensitive products." if temp >= 32 else "Cooler weather detected — keep inventory conservative for weather-sensitive categories." if temp <= 18 else "Moderate weather; holiday and product-trend signals are driving the recommendation."
+        st.markdown(f"<div class='decision'><h3>Recommended action</h3><p>{action}</p></div>",unsafe_allow_html=True)
+    st.markdown("<div class='card'><div class='eyebrow'>BUSINESS IMPACT</div><h3>Revenue & inventory outlook</h3>",unsafe_allow_html=True)
+    price_for_revenue = current if isinstance(current,(int,float)) else suggested
+    annual_revenue = float(table["Forecast demand"].sum())*float(price_for_revenue) if isinstance(price_for_revenue,(int,float)) else None
+    total_stock = int(np.ceil(table["Forecast demand"].sum()*1.10))
+    peak_idx = table["Forecast demand"].idxmax(); peak_month = str(table.loc[peak_idx,"Month"]); peak_demand = int(table.loc[peak_idx,"Forecast demand"])
+    r1,r2,r3 = st.columns(3)
+    r1.metric("Projected 12-month revenue",f"₹{annual_revenue:,.0f}" if annual_revenue is not None else "Set market price")
+    r2.metric("Planned stock capacity",f"{total_stock:,} units")
+    r3.metric("Peak demand month",f"{peak_month} · {peak_demand:,} units")
+    st.markdown("</div>",unsafe_allow_html=True)
 
 
 def render_dashboard_page():
-    render_header("DASHBOARD", "Turn market data into <span>smarter decisions.</span>", "A clean overview of your latest demand, inventory and pricing recommendation.")
-    if not st.session_state.last_prediction:
-        st.markdown("<div class='card'><h3>Welcome to your retail intelligence workspace.</h3><p class='small'>Start with Product Analysis to select a product and city, then generate the 12-month forecast.</p></div>", unsafe_allow_html=True)
+    render_header("DASHBOARD","Turn market data into <span>smarter decisions.</span>","A clean overview of your latest demand, inventory and pricing recommendation.")
     render_dashboard()
 
 
 def render_product_page():
-    render_header("PRODUCT ANALYSIS", "Analyze a product with <span>real market context.</span>", "Select a product and location, refresh the market reference, and generate a complete AI decision.")
+    render_header("PRODUCT ANALYSIS","Analyze a product with <span>real market context.</span>","Select a product and location, refresh the market reference, and generate a complete AI decision.")
     render_analysis_inputs()
-    lp = st.session_state.last_prediction
+    lp = st.session_state.get("last_prediction")
     if lp:
-        product = lp.get("product", "—")
-        city = lp.get("city", "—")
-        month = lp.get("month", "—")
-        pred = lp.get("pred", 0)
-        temp = lp.get("temp", 25.0)
-        holiday = lp.get("holiday", 0)
-        weather_source = lp.get("weather_source", "Seasonal fallback")
-        st.markdown(f"<div class='card'><div class='eyebrow'>LATEST RESULT</div><h3>{product} · {city} · {month}</h3><p class='small'>Forecast demand: <b>{int(pred):,} units</b> · Weather: <b>{float(temp):.1f} °C</b> · Holiday days: <b>{int(holiday)}</b> · Weather source: <b>{weather_source}</b></p></div>", unsafe_allow_html=True)
+        current_product = st.session_state.product
+        current_city = st.session_state.city
+        current_month = st.session_state.month_name
+        if lp.get("product") == current_product and lp.get("city") == current_city and lp.get("month") == current_month:
+            st.markdown(f"<div class='card'><div class='eyebrow'>LATEST RESULT</div><h3>{lp.get('product','—')} · {lp.get('city','—')} · {lp.get('month','—')}</h3><p class='small'>Forecast demand: <b>{int(lp.get('pred',0)):,} units</b> · Weather: <b>{float(lp.get('temp',25)):.1f} °C</b> · Holiday days: <b>{int(lp.get('holiday',0))}</b> · Weather source: <b>{lp.get('weather_source','Seasonal fallback')}</b></p></div>",unsafe_allow_html=True)
+        else:
+            st.info("The displayed inputs are different from the previous result. Generate a new AI decision.")
 
 
 def render_forecast_page():
-    render_header("DEMAND FORECASTING", "See demand change <span>across the year.</span>", "Each month is calculated with its own weather estimate instead of repeating the current temperature.")
-    if st.button("Generate / refresh 12-month forecast →", use_container_width=False, key="forecast_refresh"):
-        generate_decision(st.session_state.product, st.session_state.city, st.session_state.month_name)
+    render_header("DEMAND FORECASTING","See demand change <span>across the year.</span>","Each month is calculated with its own weather estimate instead of repeating the current temperature.")
+    if st.button("Generate / refresh 12-month forecast →",key="forecast_refresh"):
+        generate_decision(st.session_state.product,st.session_state.city,st.session_state.month_name)
         st.rerun()
     table = st.session_state.forecast_table
     if table is None:
-        st.info("No forecast yet. Click the button above or generate a decision from Product Analysis.")
+        st.info("No forecast yet. Generate a decision from Product Analysis.")
         return
     weather = monthly_weather(st.session_state.city)
     source = weather["source"] if weather else "seasonal fallback"
-    st.markdown(f"<div class='card'><div class='eyebrow'>WEATHER MODEL</div><h3>{st.session_state.city}</h3><p class='small'>Monthly temperatures come from {source.lower()}. Values are different by month and feed directly into the demand model.</p>", unsafe_allow_html=True)
-    st.line_chart(table.set_index("Month")[["Temperature (°C)"]], height=280)
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("<div class='card'><div class='eyebrow'>DEMAND + WEATHER</div><h3>Forecast trend</h3>", unsafe_allow_html=True)
-    st.line_chart(table.set_index("Month")[["Forecast demand"]], height=300)
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("<div class='card'><div class='eyebrow'>FORECAST TABLE</div><h3>Monthly demand and weather</h3>", unsafe_allow_html=True)
-    display_table = table.copy()
-    display_table["Recommended stock"] = np.ceil(display_table["Forecast demand"] * 1.10).astype(int)
-    st.dataframe(display_table, use_container_width=True, hide_index=True)
-    st.download_button(
-        "Download Forecast CSV",
-        data=display_table.to_csv(index=False).encode("utf-8"),
-        file_name=f"{st.session_state.product.lower().replace(' ', '_')}_forecast.csv",
-        mime="text/csv",
-        use_container_width=True,
-        key="download_forecast_csv",
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='card'><div class='eyebrow'>WEATHER MODEL</div><h3>{st.session_state.city}</h3><p class='small'>Monthly temperatures come from {source.lower()}. Values are different by month and feed directly into the demand model.</p>",unsafe_allow_html=True)
+    st.line_chart(table.set_index("Month")[["Temperature (°C)"]],height=280); st.markdown("</div>",unsafe_allow_html=True)
+    st.markdown("<div class='card'><div class='eyebrow'>DEMAND + WEATHER</div><h3>Forecast trend</h3>",unsafe_allow_html=True)
+    st.line_chart(table.set_index("Month")[["Forecast demand"]],height=300); st.markdown("</div>",unsafe_allow_html=True)
+    st.markdown("<div class='card'><div class='eyebrow'>FORECAST TABLE</div><h3>Monthly demand and weather</h3>",unsafe_allow_html=True)
+    display_table = table.copy(); display_table["Recommended stock"] = np.ceil(display_table["Forecast demand"]*1.10).astype(int)
+    st.dataframe(display_table,use_container_width=True,hide_index=True)
+    st.download_button("Download Forecast CSV",data=display_table.to_csv(index=False).encode("utf-8"),file_name=f"{st.session_state.product.lower().replace(' ','_')}_forecast.csv",mime="text/csv",use_container_width=True,key="download_forecast_csv")
+    st.markdown("</div>",unsafe_allow_html=True)
 
 
 def render_pricing_page():
-    render_header("DYNAMIC PRICING", "Price with <span>demand-aware context.</span>", "Use the market reference and forecast demand to produce a practical suggested price.")
-    lp = st.session_state.last_prediction
+    render_header("DYNAMIC PRICING","Price with <span>demand-aware context.</span>","Use the market reference and forecast demand to produce a practical suggested price.")
+    lp = st.session_state.get("last_prediction")
     if not lp:
-        st.info("Generate an AI decision first from Product Analysis.")
-        return
-    c1, c2, c3 = st.columns(3)
-    market_value = lp.get("market")
-    suggested_value = lp.get("suggested")
-    c1.metric("Market reference", f"₹{market_value:,.2f}" if isinstance(market_value, (int, float)) else "Not available")
-    c2.metric("Suggested price", f"₹{suggested_value:,.2f}" if isinstance(suggested_value, (int, float)) else "Not available")
-    c3.metric("Forecast demand", f"{int(lp.get('pred', 0)):,} units")
-    st.markdown("<div class='card'><div class='eyebrow'>WHAT-IF ANALYSIS</div><h3>Test demand sensitivity</h3><p class='small'>Change trend score and temperature to see how the model responds. This does not modify the saved forecast until you generate a new decision.</p>", unsafe_allow_html=True)
-    w1, w2 = st.columns(2)
-    with w1:
-        whatif_trend = st.slider("Trend score", 0, 100, int(lp.get("trend", 60)), key="whatif_trend")
-    with w2:
-        whatif_temp = st.slider("Temperature (°C)", 0.0, 45.0, float(lp.get("temp", 25.0)), step=0.5, key="whatif_temp")
-    features = pd.DataFrame({"holiday_count": [int(lp.get("holiday", 0))], "avg_temp": [whatif_temp], "viral_score": [whatif_trend]})
-    whatif_demand = float(max(0, model.predict(features)[0]))
-    baseline = max(float(lp.get("pred", 0)), 1.0)
-    change = (whatif_demand - baseline) / baseline * 100
-    q1, q2 = st.columns(2)
-    q1.metric("What-if demand", f"{whatif_demand:,.0f} units")
-    q2.metric("Demand change", f"{change:+.1f}%")
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("<div class='decision'><h3>Pricing recommendation</h3><p>The suggested price is bounded around the market reference and adjusted according to forecast demand. Refresh the market price for a current reference.</p></div>", unsafe_allow_html=True)
+        st.info("Generate an AI decision first from Product Analysis."); return
+    c1,c2,c3 = st.columns(3); market_value=lp.get("market"); suggested_value=lp.get("suggested")
+    c1.metric("Market reference",f"₹{market_value:,.2f}" if isinstance(market_value,(int,float)) else "Not available")
+    c2.metric("Suggested price",f"₹{suggested_value:,.2f}" if isinstance(suggested_value,(int,float)) else "Not available")
+    c3.metric("Forecast demand",f"{int(lp.get('pred',0)):,} units")
+    st.markdown("<div class='card'><div class='eyebrow'>WHAT-IF ANALYSIS</div><h3>Test demand sensitivity</h3><p class='small'>Change trend score and temperature to see how the model responds.</p>",unsafe_allow_html=True)
+    w1,w2=st.columns(2)
+    with w1: whatif_trend=st.slider("Trend score",0,100,int(lp.get("trend",60)),key="whatif_trend")
+    with w2: whatif_temp=st.slider("Temperature (°C)",0.0,45.0,float(lp.get("temp",25.0)),step=0.5,key="whatif_temp")
+    features=pd.DataFrame({"holiday_count":[int(lp.get("holiday",0))],"avg_temp":[whatif_temp],"viral_score":[whatif_trend]})
+    whatif_demand=float(max(0,model.predict(features)[0])); baseline=max(float(lp.get("pred",0)),1.0); change=(whatif_demand-baseline)/baseline*100
+    q1,q2=st.columns(2); q1.metric("What-if demand",f"{whatif_demand:,.0f} units"); q2.metric("Demand change",f"{change:+.1f}%")
+    st.markdown("</div>",unsafe_allow_html=True)
+    st.markdown("<div class='decision'><h3>Pricing recommendation</h3><p>The suggested price is bounded around the market reference and adjusted according to forecast demand.</p></div>",unsafe_allow_html=True)
 
 
 def render_market_page():
-    render_header("MARKET INSIGHTS", "Live market <span>reference.</span>", "Review shopping results for the selected product and use them as the pricing input.")
-    product = st.session_state.product
-    if st.button("Refresh live market data →", key="market_refresh"):
-        data = fetch_price(product)
-        st.session_state.market_data = data
-        st.session_state.current_price = data["price"] if data else None
-        st.rerun()
-    data = st.session_state.market_data
+    render_header("MARKET INSIGHTS","Live market <span>reference.</span>","Review shopping results for the selected product and use them as the pricing input.")
+    product=st.session_state.product
+    if st.button("Refresh live market data →",key="market_refresh"):
+        data=fetch_price(product); st.session_state.market_data=data; st.session_state.current_price=data["price"] if data else None; st.rerun()
+    data=st.session_state.market_data
     if data:
-        st.metric("Market reference", f"₹{data['price']:,.2f}")
-        st.dataframe(pd.DataFrame(data["results"], columns=["Price", "Product", "Source", "Link"]), use_container_width=True, hide_index=True)
-    else:
-        st.info("No market data yet. Add SERPAPI_KEY and click Refresh live market data.")
+        st.metric("Market reference",f"₹{data['price']:,.2f}")
+        st.dataframe(pd.DataFrame(data["results"],columns=["Price","Product","Source","Link"]),use_container_width=True,hide_index=True)
+    else: st.info("No market data yet. Add SERPAPI_KEY and click Refresh live market data.")
 
 
 def render_compare_page():
-    render_header("PRODUCT COMPARISON", "Compare products with <span>the same forecast model.</span>", "Compare expected demand, recommended stock and trend signals for up to three products.")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        p1 = st.text_input("Product 1", value=st.session_state.product, key="compare_p1")
-    with c2:
-        p2 = st.text_input("Product 2", value="Rice 5kg", key="compare_p2")
-    with c3:
-        p3 = st.text_input("Product 3", value="Cooking Oil 1L", key="compare_p3")
-    if st.button("Compare products →", use_container_width=True, key="compare_products"):
-        products = [p.strip() for p in [p1, p2, p3] if p.strip()]
-        rows = []
-        for product in products:
-            table, resolved_city, _ = build_forecast(product, st.session_state.city)
-            peak = table.loc[table["Forecast demand"].idxmax()]
-            total_demand = int(table["Forecast demand"].sum())
-            rows.append({
-                "Product": product,
-                "City": resolved_city,
-                "12-month demand": total_demand,
-                "Average monthly demand": round(total_demand / 12),
-                "Peak month": peak["Month"],
-                "Peak demand": int(peak["Forecast demand"]),
-                "Recommended stock": int(np.ceil(total_demand * 1.10)),
-                "Trend score": int(table["Trend score"].iloc[0]),
-            })
-        if rows:
-            st.session_state.compare_result = pd.DataFrame(rows)
-        else:
-            st.warning("Enter at least one product.")
-    result = st.session_state.get("compare_result")
+    render_header("PRODUCT COMPARISON","Compare products with <span>the same forecast model.</span>","Compare expected demand, recommended stock and trend signals for up to three products.")
+    c1,c2,c3=st.columns(3)
+    with c1: p1=st.text_input("Product 1",value=st.session_state.product,key="compare_p1")
+    with c2: p2=st.text_input("Product 2",value="Rice 5kg",key="compare_p2")
+    with c3: p3=st.text_input("Product 3",value="Cooking Oil 1L",key="compare_p3")
+    if st.button("Compare products →",use_container_width=True,key="compare_products"):
+        rows=[]
+        for product in [p.strip() for p in [p1,p2,p3] if p.strip()]:
+            table,resolved_city,_=build_forecast(product,st.session_state.city); peak=table.loc[table["Forecast demand"].idxmax()]; total=int(table["Forecast demand"].sum())
+            rows.append({"Product":product,"City":resolved_city,"12-month demand":total,"Average monthly demand":round(total/12),"Peak month":peak["Month"],"Peak demand":int(peak["Forecast demand"]),"Recommended stock":int(np.ceil(total*1.10)),"Trend score":int(table["Trend score"].iloc[0])})
+        if rows: st.session_state.compare_result=pd.DataFrame(rows)
+        else: st.warning("Enter at least one product.")
+    result=st.session_state.get("compare_result")
     if result is not None:
-        st.dataframe(result, use_container_width=True, hide_index=True)
-        st.bar_chart(result.set_index("Product")[["12-month demand"]], height=300)
+        st.dataframe(result,use_container_width=True,hide_index=True); st.bar_chart(result.set_index("Product")[["12-month demand"]],height=300)
 
 
 def render_saved_page():
-    render_header("SAVED ANALYSES", "Your saved <span>decisions.</span>", "Review predictions generated during this Streamlit session.")
-    rows = st.session_state.saved_analyses
+    render_header("SAVED ANALYSES","Your saved <span>decisions.</span>","Review predictions generated during this Streamlit session.")
+    rows=st.session_state.saved_analyses
     if rows:
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-        if st.button("Clear saved analyses", key="clear_saved"):
-            st.session_state.saved_analyses = []
-            st.rerun()
-    else:
-        st.info("No saved analyses yet. Generate an AI decision first.")
+        st.dataframe(pd.DataFrame(rows),use_container_width=True,hide_index=True)
+        if st.button("Clear saved analyses",key="clear_saved"): st.session_state.saved_analyses=[]; st.rerun()
+    else: st.info("No saved analyses yet. Generate an AI decision first.")
 
 
 def render_settings_page():
-    render_header("WORKSPACE", "Business <span>settings.</span>", "Account information and current service configuration.")
-    u = st.session_state.user or {}
-    a, b, c = st.columns(3)
-    a.metric("Account", "Active")
-    b.metric("Email", u.get("email", "N/A"))
-    c.metric("Database", "Temporarily disabled")
-    st.markdown("<div class='card'><div class='eyebrow'>DATA SERVICES</div><h3>Connection status</h3>", unsafe_allow_html=True)
+    render_header("WORKSPACE","Business <span>settings.</span>","Account information and current service configuration.")
+    u=st.session_state.user or {}; a,b,c=st.columns(3); a.metric("Account","Active"); b.metric("Email",u.get("email","N/A")); c.metric("Database","Temporarily disabled")
+    st.markdown("<div class='card'><div class='eyebrow'>DATA SERVICES</div><h3>Connection status</h3>",unsafe_allow_html=True)
     st.info("MongoDB and Brevo are intentionally disabled for the presentation build. Accounts and saved analyses are held in the current Streamlit session.")
-    st.write("SerpAPI:", "Configured" if SERPAPI_KEY else "Not configured")
-    st.write("Weather:", "Open-Meteo historical monthly data")
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.write("SerpAPI:","Configured" if SERPAPI_KEY else "Not configured"); st.write("Weather:","Open-Meteo historical monthly data"); st.markdown("</div>",unsafe_allow_html=True)
 
 
 with st.sidebar:
-    st.markdown("<div style='font-size:1.5rem;font-weight:800'>📊 OptiRetail AI</div><div style='color:#a7f3d0;font-size:.7rem'>Analyze · Predict · Price</div>", unsafe_allow_html=True)
-    st.divider()
+    st.markdown("<div style='font-size:1.5rem;font-weight:800'>📊 OptiRetail AI</div><div style='color:#a7f3d0;font-size:.7rem'>Analyze · Predict · Price</div>",unsafe_allow_html=True); st.divider()
     if st.session_state.user:
-        st.caption(st.session_state.user.get("email", "Business User"))
-        nav_items = [
-            ("Dashboard", "dashboard"), ("Product Analysis", "product"), ("Demand Forecasting", "forecast"),
-            ("Dynamic Pricing", "pricing"), ("Market Insights", "market"), ("Product Comparison", "compare"),
-            ("Saved Analyses", "saved"), ("Settings", "settings"),
-        ]
-        for label, target in nav_items:
-            if st.button(label, use_container_width=True, key=f"nav_{target}"):
-                st.session_state.page = target
-                st.rerun()
+        st.caption(st.session_state.user.get("email","Business User"))
+        nav_items=[("Dashboard","dashboard"),("Product Analysis","product"),("Demand Forecasting","forecast"),("Dynamic Pricing","pricing"),("Market Insights","market"),("Product Comparison","compare"),("Saved Analyses","saved"),("Settings","settings")]
+        for label,target in nav_items:
+            if st.button(label,use_container_width=True,key=f"nav_{target}"): st.session_state.page=target; st.rerun()
         st.divider()
-        if st.button("Sign out", use_container_width=True, key="signout"):
-            st.session_state.user = None
-            st.session_state.page = "welcome"
-            st.session_state.last_prediction = None
-            st.session_state.forecast_table = None
-            st.rerun()
+        if st.button("Sign out",use_container_width=True,key="signout"):
+            st.session_state.user=None; st.session_state.page="welcome"; st.session_state.last_prediction=None; st.session_state.forecast_table=None; st.rerun()
     else:
-        st.markdown("### Smarter retail decisions")
-        st.caption("Forecast demand. Optimize inventory. Price with confidence.")
+        st.markdown("### Smarter retail decisions"); st.caption("Forecast demand. Optimize inventory. Price with confidence.")
 
 
 if st.session_state.page == "welcome":
-    render_header("OPTIRETAIL AI", "Turn market data into <span>smarter decisions.</span>", "Forecast demand, optimize inventory and make practical pricing decisions from one clean workspace.")
-    a, b, c = st.columns(3)
-    a.markdown("<div class='card'><div class='eyebrow'>01 · FORECAST</div><h3>Know what will move.</h3><p class='small'>AI demand forecasting combines monthly weather, holidays and product trends.</p></div>", unsafe_allow_html=True)
-    b.markdown("<div class='card'><div class='eyebrow'>02 · INVENTORY</div><h3>Stock with confidence.</h3><p class='small'>Translate predicted demand into a practical quantity.</p></div>", unsafe_allow_html=True)
-    c.markdown("<div class='card'><div class='eyebrow'>03 · PRICE</div><h3>Price with context.</h3><p class='small'>Use a market reference and demand-aware recommendation.</p></div>", unsafe_allow_html=True)
-    x, y = st.columns(2)
+    render_header("OPTIRETAIL AI","Turn market data into <span>smarter decisions.</span>","Forecast demand, optimize inventory and make practical pricing decisions from one clean workspace.")
+    a,b,c=st.columns(3)
+    a.markdown("<div class='card'><div class='eyebrow'>01 · FORECAST</div><h3>Know what will move.</h3><p class='small'>AI demand forecasting combines monthly weather, holidays and product trends.</p></div>",unsafe_allow_html=True)
+    b.markdown("<div class='card'><div class='eyebrow'>02 · INVENTORY</div><h3>Stock with confidence.</h3><p class='small'>Translate predicted demand into a practical quantity.</p></div>",unsafe_allow_html=True)
+    c.markdown("<div class='card'><div class='eyebrow'>03 · PRICE</div><h3>Price with context.</h3><p class='small'>Use a market reference and demand-aware recommendation.</p></div>",unsafe_allow_html=True)
+    x,y=st.columns(2)
     with x:
-        if st.button("Get Started →", use_container_width=True, key="welcome_signup"):
-            st.session_state.page = "signup"
-            st.rerun()
+        if st.button("Get Started →",use_container_width=True,key="welcome_signup"): st.session_state.page="signup"; st.rerun()
     with y:
-        if st.button("Sign in", use_container_width=True, key="welcome_login"):
-            st.session_state.page = "login"
-            st.rerun()
+        if st.button("Sign in",use_container_width=True,key="welcome_login"): st.session_state.page="login"; st.rerun()
 
 elif st.session_state.page == "login":
-    st.markdown("<div class='auth'><div class='auth-card'><div class='eyebrow'>WELCOME BACK</div><h1 class='auth-title'>Sign in to OptiRetail AI</h1><p class='auth-sub'>Access your retail intelligence workspace.</p>", unsafe_allow_html=True)
+    st.markdown("<div class='auth'><div class='auth-card'><div class='eyebrow'>WELCOME BACK</div><h1 class='auth-title'>Sign in to OptiRetail AI</h1><p class='auth-sub'>Access your retail intelligence workspace.</p>",unsafe_allow_html=True)
     with st.form("login_form"):
-        email = st.text_input("Email address", placeholder="you@company.com")
-        password = st.text_input("Password", type="password", placeholder="Your password")
-        submitted = st.form_submit_button("Sign in", use_container_width=True)
+        email=st.text_input("Email address",placeholder="you@company.com"); password=st.text_input("Password",type="password",placeholder="Your password"); submitted=st.form_submit_button("Sign in",use_container_width=True)
     if submitted:
-        user = authenticate_local(email, password)
-        if user:
-            st.session_state.user = user
-            st.session_state.page = "dashboard"
-            st.rerun()
-        else:
-            st.error("Invalid credentials. Create an account first in this session.")
-    a, b = st.columns(2)
+        user=authenticate_local(email,password)
+        if user: st.session_state.user=user; st.session_state.page="dashboard"; st.rerun()
+        else: st.error("Invalid credentials. Create an account first in this session.")
+    a,b=st.columns(2)
     with a:
-        if st.button("Create an account →", use_container_width=True, key="login_signup"):
-            st.session_state.page = "signup"
-            st.rerun()
+        if st.button("Create an account →",use_container_width=True,key="login_signup"): st.session_state.page="signup"; st.rerun()
     with b:
-        if st.button("← Back to home", use_container_width=True, key="login_back"):
-            st.session_state.page = "welcome"
-            st.rerun()
-    st.markdown("</div></div>", unsafe_allow_html=True)
+        if st.button("← Back to home",use_container_width=True,key="login_back"): st.session_state.page="welcome"; st.rerun()
+    st.markdown("</div></div>",unsafe_allow_html=True)
 
 elif st.session_state.page == "signup":
-    st.markdown("<div class='auth'><div class='auth-card'><div class='eyebrow'>BUSINESS ONBOARDING</div><h1 class='auth-title'>Create your OptiRetail AI workspace</h1><p class='auth-sub'>Create a demo account for the presentation. Database persistence is temporarily disabled.</p>", unsafe_allow_html=True)
+    st.markdown("<div class='auth'><div class='auth-card'><div class='eyebrow'>BUSINESS ONBOARDING</div><h1 class='auth-title'>Create your OptiRetail AI workspace</h1><p class='auth-sub'>Create a demo account for the presentation. Database persistence is temporarily disabled.</p>",unsafe_allow_html=True)
     with st.form("signup_form"):
-        email = st.text_input("Email address", placeholder="you@company.com")
-        password = st.text_input("Password", type="password", placeholder="Create a password")
-        gst = st.text_input("GST Number", placeholder="Enter GST number")
-        turnover = st.selectbox("Annual Turnover", ["1–5 Lakh", "5–10 Lakh", "10–15 Lakh", "15–50 Lakh", "50 Lakh+"])
-        submitted = st.form_submit_button("Create account", use_container_width=True)
+        email=st.text_input("Email address",placeholder="you@company.com"); password=st.text_input("Password",type="password",placeholder="Create a password"); gst=st.text_input("GST Number",placeholder="Enter GST number"); turnover=st.selectbox("Annual Turnover",["1–5 Lakh","5–10 Lakh","10–15 Lakh","15–50 Lakh","50 Lakh+"]); submitted=st.form_submit_button("Create account",use_container_width=True)
     if submitted:
-        email = email.strip().lower()
-        if not email or "@" not in email or not password or not gst:
-            st.error("Please enter a valid email, password and GST number.")
+        email=email.strip().lower()
+        if not email or "@" not in email or not password or not gst: st.error("Please enter a valid email, password and GST number.")
         else:
-            ok, msg = save_local_user(email, password, gst, turnover)
-            if ok:
-                st.success(msg)
-                st.session_state.page = "login"
-                st.rerun()
-            else:
-                st.error(msg)
-    a, b = st.columns(2)
+            ok,msg=save_local_user(email,password,gst,turnover)
+            if ok: st.success(msg); st.session_state.page="login"; st.rerun()
+            else: st.error(msg)
+    a,b=st.columns(2)
     with a:
-        if st.button("Already have an account? Sign in", key="signup_login"):
-            st.session_state.page = "login"
-            st.rerun()
+        if st.button("Already have an account? Sign in",key="signup_login"): st.session_state.page="login"; st.rerun()
     with b:
-        if st.button("← Back to home", key="signup_back"):
-            st.session_state.page = "welcome"
-            st.rerun()
-    st.markdown("</div></div>", unsafe_allow_html=True)
+        if st.button("← Back to home",key="signup_back"): st.session_state.page="welcome"; st.rerun()
+    st.markdown("</div></div>",unsafe_allow_html=True)
 
 elif st.session_state.user:
-    page_renderers = {
-        "dashboard": render_dashboard_page,
-        "product": render_product_page,
-        "forecast": render_forecast_page,
-        "pricing": render_pricing_page,
-        "market": render_market_page,
-        "compare": render_compare_page,
-        "saved": render_saved_page,
-        "settings": render_settings_page,
-    }
-    renderer = page_renderers.get(st.session_state.page)
-    if renderer:
-        renderer()
-    else:
-        st.session_state.page = "dashboard"
-        st.rerun()
+    page_renderers={"dashboard":render_dashboard_page,"product":render_product_page,"forecast":render_forecast_page,"pricing":render_pricing_page,"market":render_market_page,"compare":render_compare_page,"saved":render_saved_page,"settings":render_settings_page}
+    renderer=page_renderers.get(st.session_state.page)
+    if renderer: renderer()
+    else: st.session_state.page="dashboard"; st.rerun()
 else:
-    st.session_state.page = "welcome"
-    st.rerun()
+    st.session_state.page="welcome"; st.rerun()
