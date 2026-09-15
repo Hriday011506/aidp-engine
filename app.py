@@ -1,7 +1,7 @@
 import calendar
 import datetime as dt
 import hashlib
-from urllib.parse import parse_qsl, quote, unquote, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit, urlunsplit
 
 import numpy as np
 import pandas as pd
@@ -82,13 +82,10 @@ label,div[data-testid="stWidgetLabel"] p{color:#334155!important;font-weight:600
 
 
 def normalize_mongo_uri(raw_uri):
-    """Make a MongoDB URI safe even when the Atlas password contains URI characters."""
     uri = raw_uri.strip().strip('"').strip("'")
     if not uri.startswith(("mongodb://", "mongodb+srv://")):
         raise ValueError("MONGO_URI must start with mongodb:// or mongodb+srv://.")
-
     scheme, rest = uri.split("://", 1)
-    # Split at the last @ so a raw @ inside a password does not break the URI.
     if "@" in rest:
         credentials, host_and_query = rest.rsplit("@", 1)
         if ":" in credentials:
@@ -96,11 +93,9 @@ def normalize_mongo_uri(raw_uri):
             username = quote(unquote(username), safe="")
             password = quote(unquote(password), safe="")
             rest = f"{username}:{password}@{host_and_query}"
-
     parsed = urlsplit(f"{scheme}://{rest}")
     if not parsed.hostname:
         raise ValueError("MONGO_URI does not contain a valid Atlas hostname.")
-
     query = dict(parse_qsl(parsed.query, keep_blank_values=True))
     query["authSource"] = query.get("authSource") or "admin"
     query.setdefault("retryWrites", "true")
@@ -111,13 +106,7 @@ def normalize_mongo_uri(raw_uri):
 
 @st.cache_resource(show_spinner=False)
 def get_mongo_client(uri):
-    kwargs = {
-        "serverSelectionTimeoutMS": 12000,
-        "connectTimeoutMS": 12000,
-        "socketTimeoutMS": 12000,
-        "retryWrites": True,
-        "appname": "OptiRetailAI",
-    }
+    kwargs = {"serverSelectionTimeoutMS": 12000, "connectTimeoutMS": 12000, "socketTimeoutMS": 12000, "retryWrites": True, "appname": "OptiRetailAI"}
     if certifi is not None:
         kwargs["tlsCAFile"] = certifi.where()
     client = MongoClient(uri, **kwargs)
@@ -168,13 +157,7 @@ def save_user(email, password, gst, turnover):
     try:
         if users.find_one({"email": normalized}):
             return False, "An account with this email already exists."
-        users.insert_one({
-            "email": normalized,
-            "password_hash": password_hash(password),
-            "gst": gst.strip(),
-            "turnover": turnover,
-            "created_at": dt.datetime.now(dt.timezone.utc),
-        })
+        users.insert_one({"email": normalized, "password_hash": password_hash(password), "gst": gst.strip(), "turnover": turnover, "created_at": dt.datetime.now(dt.timezone.utc)})
         return True, "Account created successfully."
     except Exception as exc:
         return False, f"Could not save account: {type(exc).__name__}."
@@ -242,11 +225,7 @@ def holiday_count(year, month):
 @st.cache_resource(show_spinner=False)
 def train_model():
     rng = np.random.default_rng(42)
-    data = pd.DataFrame({
-        "holiday_count": rng.integers(0, 12, 500),
-        "avg_temp": rng.uniform(10, 40, 500),
-        "viral_score": rng.integers(0, 100, 500),
-    })
+    data = pd.DataFrame({"holiday_count": rng.integers(0, 12, 500), "avg_temp": rng.uniform(10, 40, 500), "viral_score": rng.integers(0, 100, 500)})
     seasonal = np.maximum(0, 22 - np.abs(data["avg_temp"] - 28))
     data["sales"] = 180 + data["holiday_count"] * 42 + data["viral_score"] * 4.8 + seasonal * 11 + rng.normal(0, 25, 500)
     model = RandomForestRegressor(n_estimators=250, max_depth=12, min_samples_leaf=2, random_state=42, n_jobs=-1)
