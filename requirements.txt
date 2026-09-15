@@ -9,3 +9,4 @@ bcrypt
 google-search-results
 requests
 joblib
+pymongo[srv]
