@@ -3,6 +3,7 @@ import datetime as dt
 import hashlib
 import secrets
 import time
+from urllib.parse import urlsplit
 
 import numpy as np
 import pandas as pd
@@ -25,8 +26,9 @@ except ImportError:
 
 st.set_page_config(page_title="OptiRetail AI", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 
+# Accept the normal Streamlit secret names, plus MONGODB_URI as a compatibility fallback.
 SERPAPI_KEY = st.secrets.get("SERPAPI_KEY", "")
-MONGO_URI = st.secrets.get("MONGO_URI", "")
+MONGO_URI = st.secrets.get("MONGO_URI", st.secrets.get("MONGODB_URI", ""))
 BREVO_API_KEY = st.secrets.get("BREVO_API_KEY", "")
 BREVO_SENDER_EMAIL = st.secrets.get("BREVO_SENDER_EMAIL", "")
 BREVO_SENDER_NAME = st.secrets.get("BREVO_SENDER_NAME", "OptiRetail AI")
@@ -58,19 +60,57 @@ div[data-testid="stTextInput"] input::placeholder,div[data-testid="stNumberInput
 </style>
 """, unsafe_allow_html=True)
 
+
+def _secret_text(name):
+    """Read a secret safely as text, including quoted values copied into Streamlit Secrets."""
+    try:
+        value = st.secrets.get(name, "")
+        return str(value).strip().strip('"').strip("'") if value else ""
+    except Exception:
+        return ""
+
+
 @st.cache_resource(show_spinner=False)
 def get_database():
-    if not MONGO_URI:
+    uri = _secret_text("MONGO_URI") or _secret_text("MONGODB_URI")
+    if not uri:
         return None, "MONGO_URI is missing from Streamlit Secrets."
     if MongoClient is None:
-        return None, "PyMongo is not installed."
+        return None, "PyMongo is not installed. Add pymongo[srv] to requirements.txt."
+    if not (uri.startswith("mongodb://") or uri.startswith("mongodb+srv://")):
+        return None, "MONGO_URI must start with mongodb:// or mongodb+srv://."
+    if "<password>" in uri or "<db_password>" in uri:
+        return None, "MONGO_URI still contains a password placeholder. Replace it with the Atlas database-user password."
+
     try:
-        uri = str(MONGO_URI).strip().strip('"').strip("'")
-        client = MongoClient(uri, serverSelectionTimeoutMS=8000, connectTimeoutMS=8000)
+        # Do not display or log the URI. The hostname is safe to use for diagnostics.
+        parsed = urlsplit(uri)
+        host = parsed.hostname or "unknown-host"
+        client = MongoClient(
+            uri,
+            serverSelectionTimeoutMS=15000,
+            connectTimeoutMS=15000,
+            socketTimeoutMS=15000,
+            retryWrites=True,
+            appname="OptiRetailAI",
+        )
         client.admin.command("ping")
-        return client["optiretail_ai"], "Connected"
+        database = client["optiretail_ai"]
+        database.command("ping")
+        return database, f"Connected to {host}"
     except Exception as exc:
-        return None, f"MongoDB connection failed: {type(exc).__name__}: {exc}"
+        error = str(exc)
+        # Never expose credentials if an unusual driver error echoes the URI.
+        if "@" in error and "://" in error:
+            error = "MongoDB rejected the connection string. Check the username/password and URL encoding."
+        elif "ServerSelectionTimeoutError" in type(exc).__name__:
+            error = "Atlas server could not be reached. Check Atlas Network Access and allow your Streamlit Cloud app to connect."
+        elif "Authentication failed" in error or "AuthenticationFailed" in type(exc).__name__:
+            error = "MongoDB authentication failed. Check the Atlas database username, password and authSource."
+        elif "bad auth" in error.lower():
+            error = "MongoDB authentication failed. Check the Atlas database username and password."
+        return None, f"MongoDB connection failed: {error}"
+
 
 db, mongo_status = get_database()
 users = db["users"] if db is not None else None
@@ -99,7 +139,7 @@ def send_otp(email, otp):
 
 def save_user(email, password, gst, turnover):
     if users is None:
-        return False, "MongoDB is unavailable. Check MONGO_URI and Atlas Network Access."
+        return False, f"MongoDB is unavailable. {mongo_status}"
     email = email.strip().lower()
     try:
         if users.find_one({"email": email}):
@@ -182,7 +222,7 @@ def trend_score(product):
     return int(rng.integers(35, 90))
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def train_model():
     rng = np.random.default_rng(42)
     data = pd.DataFrame({"holiday_count":rng.integers(0,12,500),"avg_temp":rng.uniform(10,40,500),"viral_score":rng.integers(0,100,500)})
@@ -294,7 +334,7 @@ with st.sidebar:
         st.markdown("### Smarter retail decisions")
         st.caption("Forecast demand. Optimize inventory. Price with confidence.")
 
-# Page routing is one continuous if/elif chain. Helper functions are defined above it.
+# Page routing is one continuous if/elif chain.
 if st.session_state.page == "welcome":
     st.markdown("<div class='hero'><div class='eyebrow'>OPTIRETAIL AI</div><h1>Turn market data into <span>smarter decisions.</span></h1><p>Forecast demand, understand market signals, optimize inventory and make practical pricing decisions from one clean workspace.</p></div>", unsafe_allow_html=True)
     a,b,c = st.columns(3)
@@ -304,12 +344,10 @@ if st.session_state.page == "welcome":
     x,y = st.columns(2)
     with x:
         if st.button("Get Started →", use_container_width=True, key="welcome_signup"):
-            st.session_state.page = "signup"
-            st.rerun()
+            st.session_state.page = "signup"; st.rerun()
     with y:
         if st.button("Sign in", use_container_width=True, key="welcome_login"):
-            st.session_state.page = "login"
-            st.rerun()
+            st.session_state.page = "login"; st.rerun()
 
 elif st.session_state.page == "login":
     st.markdown("<div class='auth'><div class='auth-card'><div class='eyebrow'>WELCOME BACK</div><h1 class='auth-title'>Sign in to OptiRetail AI.</h1><p class='auth-sub'>Access your retail intelligence workspace.</p>", unsafe_allow_html=True)
@@ -320,22 +358,18 @@ elif st.session_state.page == "login":
     if submitted:
         user = authenticate(email,password)
         if user:
-            st.session_state.user = user
-            st.session_state.page = "dashboard"
-            st.rerun()
+            st.session_state.user = user; st.session_state.page = "dashboard"; st.rerun()
         elif users is None:
-            st.error("MongoDB is unavailable. Check MONGO_URI in Streamlit Secrets and Atlas Network Access.")
+            st.error(f"MongoDB is unavailable. {mongo_status}")
         else:
             st.error("Invalid credentials.")
     a,b = st.columns(2)
     with a:
         if st.button("Create an account →", use_container_width=True, key="login_signup"):
-            st.session_state.page = "signup"
-            st.rerun()
+            st.session_state.page = "signup"; st.rerun()
     with b:
         if st.button("← Back to home", use_container_width=True, key="login_back"):
-            st.session_state.page = "welcome"
-            st.rerun()
+            st.session_state.page = "welcome"; st.rerun()
     st.markdown("</div></div>", unsafe_allow_html=True)
 
 elif st.session_state.page == "signup":
@@ -352,26 +386,18 @@ elif st.session_state.page == "signup":
             if not email or "@" not in email or not password or not gst:
                 st.error("Please enter a valid email, password and GST number.")
             elif users is None:
-                st.error("MongoDB is unavailable. Check MONGO_URI in Streamlit Secrets.")
+                st.error(f"MongoDB is unavailable. {mongo_status}")
             else:
                 try:
                     exists = users.find_one({"email":email})
                 except Exception as exc:
-                    exists = None
-                    st.error(f"MongoDB error: {exc}")
+                    exists = None; st.error(f"MongoDB error: {exc}")
                 if not exists:
-                    otp = generate_otp()
-                    ok,msg = send_otp(email,otp)
+                    otp = generate_otp(); ok,msg = send_otp(email,otp)
                     if ok:
-                        st.session_state.otp_email = email
-                        st.session_state.otp_value = otp
-                        st.session_state.otp_created_at = time.time()
-                        st.session_state.pending_signup = {"email":email,"password":password,"gst":gst,"turnover":turnover}
-                        st.rerun()
-                    else:
-                        st.error(msg)
-                else:
-                    st.error("An account with this email already exists.")
+                        st.session_state.otp_email = email; st.session_state.otp_value = otp; st.session_state.otp_created_at = time.time(); st.session_state.pending_signup = {"email":email,"password":password,"gst":gst,"turnover":turnover}; st.rerun()
+                    else: st.error(msg)
+                else: st.error("An account with this email already exists.")
     else:
         st.success(f"Verification code sent to {st.session_state.otp_email}")
         with st.form("otp_form"):
@@ -385,23 +411,13 @@ elif st.session_state.page == "signup":
             else:
                 ok,msg = save_user(**st.session_state.pending_signup)
                 if ok:
-                    clear_otp()
-                    st.session_state.page = "login"
-                    st.success(msg)
-                    st.rerun()
-                else:
-                    st.error(msg)
+                    clear_otp(); st.session_state.page = "login"; st.success(msg); st.rerun()
+                else: st.error(msg)
         if st.button("Resend OTP", key="resend_otp"):
-            pending = st.session_state.pending_signup
-            new_code = generate_otp()
-            ok,msg = send_otp(pending["email"],new_code)
+            pending = st.session_state.pending_signup; new_code = generate_otp(); ok,msg = send_otp(pending["email"],new_code)
             if ok:
-                st.session_state.otp_value = new_code
-                st.session_state.otp_created_at = time.time()
-                st.success("New OTP sent.")
-                st.rerun()
-            else:
-                st.error(msg)
+                st.session_state.otp_value = new_code; st.session_state.otp_created_at = time.time(); st.success("New OTP sent."); st.rerun()
+            else: st.error(msg)
     a,b = st.columns(2)
     with a:
         if st.button("Already have an account? Sign in", key="signup_login"):
@@ -414,37 +430,46 @@ elif st.session_state.page == "signup":
 elif st.session_state.page == "settings" and st.session_state.user:
     st.markdown("<div class='hero'><div class='eyebrow'>WORKSPACE</div><h1>Business settings</h1><p>Manage your OptiRetail AI workspace and connected services.</p></div>", unsafe_allow_html=True)
     u = st.session_state.user
-    a,b,c = st.columns(3)
-    a.metric("Account", "Active")
-    b.metric("Email", u.get("email", "N/A"))
-    c.metric("Turnover", u.get("turnover", "N/A"))
+    a,b,c = st.columns(3); a.metric("Account", "Active"); b.metric("Email", u.get("email", "N/A")); c.metric("Turnover", u.get("turnover", "N/A"))
     st.markdown("<div class='card'><div class='eyebrow'>DATA SERVICES</div><h3>Connection status</h3>", unsafe_allow_html=True)
-    st.markdown(f"<div class='signal'><b>MongoDB</b><span>{'CONNECTED' if db is not None else 'UNAVAILABLE'}</span></div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='signal'><b>SerpAPI</b><span>{'CONFIGURED' if SERPAPI_KEY else 'MISSING'}</span></div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='signal'><b>Brevo Email OTP</b><span>{'CONFIGURED' if BREVO_API_KEY and BREVO_SENDER_EMAIL else 'MISSING'}</span></div>", unsafe_allow_html=True)
-    st.markdown(f"<p class='small'>{mongo_status}</p></div>", unsafe_allow_html=True)
+    st.write("MongoDB:", "Connected" if db is not None else "Unavailable")
+    st.write("SerpAPI:", "Configured" if SERPAPI_KEY else "Not configured")
+    st.write("Brevo email:", "Configured" if BREVO_API_KEY and BREVO_SENDER_EMAIL else "Not configured")
+    if db is None:
+        st.warning(mongo_status)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-elif st.session_state.page in {"dashboard","product","forecast","pricing","market"} and st.session_state.user:
-    titles = {"dashboard":"Good morning. Make the next decision","product":"Analyze a product","forecast":"Demand forecasting","pricing":"Dynamic pricing","market":"Market insights"}
-    subtitles = {"dashboard":"Turn product, market, weather and trend signals into a practical decision.","product":"Analyze a product with market price, weather, holiday and trend inputs.","forecast":"Explore the 12-month demand outlook generated from the current signals.","pricing":"Use the market reference and predicted demand for a bounded suggested price.","market":"Review the live market reference and demand-driving signals."}
-    st.markdown(f"<div class='hero'><div class='eyebrow'>OPTIRETAIL AI · {st.session_state.page.upper()}</div><h1>{titles[st.session_state.page]} <span>with confidence.</span></h1><p>{subtitles[st.session_state.page]}</p></div>", unsafe_allow_html=True)
-    render_analysis()
-    render_dashboard()
+elif st.session_state.page == "dashboard" and st.session_state.user:
+    st.markdown("<div class='hero'><div class='eyebrow'>DASHBOARD</div><h1>Smarter retail decisions.</h1><p>Analyze products, forecast demand and turn signals into practical inventory and pricing actions.</p></div>", unsafe_allow_html=True)
+    render_analysis(); render_dashboard()
 
-elif st.session_state.page == "saved" and st.session_state.user:
-    st.markdown("<div class='hero'><div class='eyebrow'>OPTIRETAIL AI · SAVED</div><h1>Saved <span>analyses.</span></h1><p>Your latest demand, inventory and pricing decisions stored in MongoDB.</p></div>", unsafe_allow_html=True)
-    if predictions is None:
-        st.warning("MongoDB is unavailable, so saved analyses cannot be loaded.")
+elif st.session_state.page == "product" and st.session_state.user:
+    st.markdown("<div class='hero'><div class='eyebrow'>PRODUCT ANALYSIS</div><h1>Analyze a product.</h1><p>Combine demand, weather, holidays, trends and market pricing in one view.</p></div>", unsafe_allow_html=True)
+    render_analysis(); render_dashboard()
+
+elif st.session_state.page in {"forecast","pricing","market","saved"} and st.session_state.user:
+    titles = {"forecast":"Demand Forecasting","pricing":"Dynamic Pricing","market":"Market Insights","saved":"Saved Analyses"}
+    st.markdown(f"<div class='hero'><div class='eyebrow'>OPTIRETAIL AI</div><h1>{titles[st.session_state.page]}</h1><p>Use the Product Analysis workspace to generate and review your latest decision.</p></div>", unsafe_allow_html=True)
+    if st.session_state.page == "forecast":
+        render_analysis(); render_dashboard()
+    elif st.session_state.page == "pricing":
+        render_analysis(); render_dashboard()
+    elif st.session_state.page == "market":
+        data = st.session_state.market_data
+        if data:
+            st.metric("Market reference", f"₹{data['price']:,.2f}")
+            st.dataframe(pd.DataFrame(data["results"], columns=["Price","Product","Source","Link"]), use_container_width=True, hide_index=True)
+        else:
+            st.info("Run Refresh market price from Product Analysis first.")
     else:
-        try:
-            rows = list(predictions.find({"email":st.session_state.user.get("email")}).sort("created_at",-1).limit(30))
-            if rows:
-                display = pd.DataFrame([{k:r.get(v) for k,v in [("Date","created_at"),("Product","product"),("City","city"),("Demand","demand"),("Stock","recommended_stock"),("Market Price","market_price"),("Suggested Price","suggested_price")]} for r in rows])
-                st.dataframe(display, use_container_width=True, hide_index=True)
-            else:
-                st.info("No saved analyses yet. Generate a decision from the dashboard.")
-        except Exception as exc:
-            st.error(f"Could not load saved analyses: {exc}")
+        if predictions is None:
+            st.warning(f"MongoDB is unavailable. {mongo_status}")
+        else:
+            try:
+                rows = list(predictions.find({"email":st.session_state.user.get("email")},{"_id":0}).sort("created_at",-1).limit(20))
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True) if rows else st.info("No saved analyses yet.")
+            except Exception as exc:
+                st.error(f"Could not load saved analyses: {exc}")
 
 else:
     st.session_state.page = "welcome"
