@@ -114,39 +114,86 @@ def monthly_weather(city):
 
 
 def live_market_price(product, city):
+    """Fetch a live India market reference with short retries and two SerpAPI engines."""
     key = str(st.secrets.get("SERPAPI_KEY", "")).strip()
     if not key:
         return None, "SERPAPI_KEY is missing from Streamlit Secrets."
-    try:
-        r = requests.get("https://serpapi.com/search.json", params={"engine": "google", "q": f"{product} price {city} India", "location": f"{city}, Rajasthan, India", "hl": "en", "gl": "in", "api_key": key}, timeout=15)
-        data = r.json()
-        if data.get("error"):
-            return None, f"Live market lookup failed: {data['error']}"
-        candidates = []
-        for key_name in ("shopping_results", "inline_shopping_results"):
-            for item in data.get(key_name, [])[:15]:
-                if item.get("price"):
-                    candidates.append(str(item["price"]))
-        text = " ".join(candidates)
-        found = re.findall(r"(?:₹|Rs\.?|INR)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)", text, flags=re.I)
-        if not found:
-            snippets = []
-            for item in data.get("organic_results", [])[:10]:
-                snippets += [str(item.get("title", "")), str(item.get("snippet", ""))]
-            found = re.findall(r"(?:₹|Rs\.?|INR)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)", " ".join(snippets), flags=re.I)
-        values = []
-        for value in found:
+
+    base_params = {
+        "q": f"{product} price {city} India",
+        "location": f"{city}, India",
+        "hl": "en",
+        "gl": "in",
+        "api_key": key,
+    }
+
+    last_error = None
+    for engine in ("google_shopping", "google"):
+        params = dict(base_params)
+        params["engine"] = engine
+        for attempt in range(2):
             try:
-                number = float(value.replace(",", ""))
-                if 0 < number < 100000:
-                    values.append(number)
-            except ValueError:
-                continue
-        if not values:
-            return None, f"No current price found for {product} in {city}."
-        return round(float(np.median(values)), 2), "Live Google market reference via SerpAPI"
-    except Exception as exc:
-        return None, f"Live market lookup failed: {exc}"
+                r = requests.get(
+                    "https://serpapi.com/search.json",
+                    params=params,
+                    timeout=(5, 12),
+                )
+                r.raise_for_status()
+                data = r.json()
+                if data.get("error"):
+                    last_error = str(data["error"])
+                    break
+
+                candidates = []
+                for key_name in ("shopping_results", "inline_shopping_results", "products_results"):
+                    for item in data.get(key_name, [])[:20]:
+                        if item.get("price"):
+                            candidates.append(str(item["price"]))
+
+                text = " ".join(candidates)
+                found = re.findall(
+                    r"(?:₹|Rs\.?|INR)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
+                    text,
+                    flags=re.I,
+                )
+
+                if not found and engine == "google":
+                    snippets = []
+                    for item in data.get("organic_results", [])[:10]:
+                        snippets += [str(item.get("title", "")), str(item.get("snippet", ""))]
+                    found = re.findall(
+                        r"(?:₹|Rs\.?|INR)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
+                        " ".join(snippets),
+                        flags=re.I,
+                    )
+
+                values = []
+                for value in found:
+                    try:
+                        number = float(value.replace(",", ""))
+                        if 0 < number < 100000:
+                            values.append(number)
+                    except ValueError:
+                        continue
+
+                if values:
+                    return round(float(np.median(values)), 2), "Live Google market reference via SerpAPI"
+                last_error = f"No current price found for {product} in {city}."
+                break
+
+            except requests.exceptions.Timeout:
+                last_error = "SerpAPI request timed out"
+                if attempt == 0:
+                    continue
+                break
+            except requests.exceptions.RequestException as exc:
+                last_error = str(exc)
+                break
+            except (ValueError, TypeError) as exc:
+                last_error = str(exc)
+                break
+
+    return None, f"Live market lookup is temporarily unavailable: {last_error}. Please try Refresh live market price again."
 
 
 def holiday_days(year, month):
