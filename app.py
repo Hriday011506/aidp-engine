@@ -12,17 +12,11 @@ try:
 except ImportError:
     GoogleSearch = None
 
-st.set_page_config(page_title="AIDP Engine", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="OptiRetail AI", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 
-# ==============================
-# CONFIG / SECRETS
-# ==============================
 SERPAPI_KEY = st.secrets.get("SERPAPI_KEY", "")
-# MongoDB can be re-added later through Streamlit Secrets without exposing it in GitHub.
+MONGO_URI = st.secrets.get("MONGO_URI", "")
 
-# ==============================
-# SESSION
-# ==============================
 DEFAULTS = {
     "user": None,
     "page": "welcome",
@@ -30,56 +24,63 @@ DEFAULTS = {
     "city": "Jaipur",
     "month_name": datetime.datetime.now().strftime("%B"),
     "last_prediction": None,
+    "current_price": None,
     "users": []
 }
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-# ==============================
-# PREMIUM UI
-# ==============================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
-.stApp { background: radial-gradient(circle at 8% 0%,rgba(37,99,235,.16),transparent 28%),radial-gradient(circle at 100% 8%,rgba(124,58,237,.14),transparent 26%),linear-gradient(135deg,#020617,#07111f 52%,#020617); color:#e2e8f0; }
-.block-container { max-width: 1480px; padding-top: 1.4rem; padding-bottom: 4rem; }
-[data-testid="stSidebar"] { background:linear-gradient(180deg,#020617,#0b1220); border-right:1px solid rgba(148,163,184,.12); }
-[data-testid="stSidebar"] * { color:#dbeafe; }
-.hero { padding:38px 40px; border-radius:32px; background:linear-gradient(135deg,rgba(15,23,42,.96),rgba(30,41,59,.78)); border:1px solid rgba(96,165,250,.16); box-shadow:0 28px 80px rgba(0,0,0,.3); margin-bottom:22px; }
-.hero h1 { margin:0; font-size:3.35rem; line-height:1.04; letter-spacing:-2px; }
-.hero p { color:#94a3b8; margin:11px 0 0; font-size:1.02rem; max-width:900px; }
-.eyebrow { color:#67e8f9; text-transform:uppercase; font-size:.72rem; font-weight:800; letter-spacing:2.2px; margin-bottom:10px; }
-.card { background:rgba(15,23,42,.7); border:1px solid rgba(148,163,184,.12); border-radius:24px; padding:24px; box-shadow:0 18px 52px rgba(0,0,0,.2); margin-bottom:18px; }
-.kpi { background:linear-gradient(145deg,rgba(15,23,42,.98),rgba(30,41,59,.9)); border:1px solid rgba(96,165,250,.14); border-radius:20px; padding:21px; min-height:124px; box-shadow:inset 0 1px rgba(255,255,255,.03); }
-.kpi small { color:#94a3b8; text-transform:uppercase; letter-spacing:1.2px; font-weight:700; }
-.kpi strong { display:block; color:#f8fafc; font-size:1.9rem; margin-top:8px; }
-.pill { display:inline-block; padding:7px 11px; border-radius:999px; background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.2); color:#86efac; font-size:.72rem; font-weight:800; }
-.stButton>button { border:0!important; border-radius:13px!important; min-height:46px!important; font-weight:800!important; background:linear-gradient(135deg,#06b6d4,#2563eb)!important; color:white!important; box-shadow:0 10px 28px rgba(37,99,235,.22); }
+:root { --green:#047857; --green2:#10b981; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --soft:#f8fafc; }
+html, body, [class*="css"] { font-family:'Plus Jakarta Sans',sans-serif; }
+.stApp { background:linear-gradient(180deg,#f7fbfa 0%,#f8fafc 42%,#eef7f4 100%); color:var(--ink); }
+.block-container { max-width:1500px; padding:1.2rem 2rem 3rem; }
+[data-testid="stSidebar"] { background:linear-gradient(180deg,#06281f,#07382b); border-right:1px solid rgba(255,255,255,.08); }
+[data-testid="stSidebar"] * { color:#ecfdf5!important; }
+[data-testid="stSidebar"] .stButton>button { background:transparent!important; box-shadow:none!important; border:1px solid transparent!important; text-align:left!important; }
+.topbar { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:18px; }
+.brand { display:flex; align-items:center; gap:12px; }
+.logo { width:46px; height:46px; border-radius:14px; background:linear-gradient(135deg,#10b981,#047857); color:white; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:20px; box-shadow:0 10px 24px rgba(4,120,87,.2); }
+.brand-title { font-size:1.55rem; font-weight:800; line-height:1; }
+.brand-sub { color:#64748b; font-size:.72rem; margin-top:5px; }
+.hero { padding:34px 36px; border-radius:28px; background:linear-gradient(135deg,#ffffff 0%,#ecfdf5 100%); border:1px solid #dcefe8; box-shadow:0 18px 45px rgba(15,23,42,.06); margin-bottom:20px; }
+.hero h1 { margin:0; font-size:3rem; line-height:1.05; letter-spacing:-1.7px; }
+.hero p { margin:10px 0 0; color:#64748b; max-width:920px; font-size:1rem; }
+.green-text { color:#047857; }
+.eyebrow { color:#059669; text-transform:uppercase; letter-spacing:2px; font-weight:800; font-size:.68rem; margin-bottom:9px; }
+.section-title { font-size:1.35rem; font-weight:800; margin:.7rem 0 .9rem; }
+.card { background:#fff; border:1px solid var(--line); border-radius:22px; padding:22px; box-shadow:0 12px 34px rgba(15,23,42,.05); margin-bottom:16px; }
+.kpi { background:#fff; border:1px solid var(--line); border-radius:20px; padding:20px; min-height:120px; box-shadow:0 10px 28px rgba(15,23,42,.04); }
+.kpi small { color:#64748b; text-transform:uppercase; letter-spacing:1px; font-size:.64rem; font-weight:800; }
+.kpi strong { display:block; font-size:1.65rem; margin-top:8px; color:#0f172a; }
+.kpi span { display:block; color:#059669; font-size:.72rem; margin-top:4px; font-weight:700; }
+.feature { background:linear-gradient(135deg,#06281f,#047857); color:#ecfdf5; border-radius:24px; padding:24px; box-shadow:0 18px 38px rgba(4,120,87,.18); }
+.feature h3 { margin:0 0 7px; font-size:1.15rem; }
+.feature p { color:#bbf7d0; margin:0; line-height:1.7; font-size:.88rem; }
+.pill { display:inline-block; padding:7px 11px; border-radius:999px; background:#ecfdf5; border:1px solid #bbf7d0; color:#047857; font-size:.7rem; font-weight:800; }
+.stButton>button { border:0!important; border-radius:12px!important; min-height:44px!important; font-weight:800!important; background:linear-gradient(135deg,#10b981,#047857)!important; color:white!important; box-shadow:0 10px 25px rgba(4,120,87,.16); }
 .stButton>button:hover { transform:translateY(-1px); }
-[data-testid="stMetricValue"] { color:#f8fafc; }
-[data-testid="stMetricLabel"] { color:#94a3b8; }
+.stTextInput input,.stSelectbox div[data-baseweb="select"]>div { border-radius:12px!important; border-color:#d7e3df!important; }
+[data-testid="stMetricValue"] { color:#0f172a; }
+[data-testid="stMetricLabel"] { color:#64748b; }
+.small-note { color:#64748b; font-size:.76rem; }
+hr { border-color:#e2e8f0!important; }
 footer { visibility:hidden; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==============================
-# LOCAL DEMO AUTH
+# LOCAL SESSION AUTH
 # ==============================
 def signup(email, password, gst, turnover):
     email = email.strip().lower()
     if any(u["email"] == email for u in st.session_state.users):
         return False, "An account with this email already exists."
-    st.session_state.users.append({
-        "email": email,
-        "password": password,
-        "gst": gst,
-        "turnover": turnover,
-        "created_at": datetime.datetime.now().isoformat()
-    })
+    st.session_state.users.append({"email":email,"password":password,"gst":gst,"turnover":turnover,"created_at":datetime.datetime.now().isoformat()})
     return True, "Account created successfully."
-
 
 def login(email, password):
     email = email.strip().lower()
@@ -89,312 +90,236 @@ def login(email, password):
     return None
 
 # ==============================
-# FAST MARKET PRICE LOOKUP
+# SERVICES
 # ==============================
 @st.cache_data(ttl=900, show_spinner=False)
 def fetch_product_price(product_name):
-    """One focused, cached SerpAPI shopping-price request."""
     product_name = product_name.strip()
     if not product_name or not SERPAPI_KEY or GoogleSearch is None:
         return None
     try:
-        results = GoogleSearch({
-            "engine": "google_shopping_light",
-            "q": f"{product_name} price",
-            "gl": "in",
-            "hl": "en",
-            "num": 8,
-            "api_key": SERPAPI_KEY
-        }).get_dict()
-
-        tokens = [t for t in product_name.lower().split() if len(t) > 2]
-        candidates = []
-        for item in results.get("shopping_results", []):
-            raw = item.get("extracted_price", item.get("price"))
+        results = GoogleSearch({"engine":"google_shopping_light","q":f"{product_name} price","gl":"in","hl":"en","num":8,"api_key":SERPAPI_KEY}).get_dict()
+        tokens=[t for t in product_name.lower().split() if len(t)>2]
+        candidates=[]
+        for item in results.get("shopping_results",[]):
+            raw=item.get("extracted_price",item.get("price"))
             try:
-                if isinstance(raw, str):
-                    raw = raw.replace(",", "").replace("₹", "").strip()
-                numeric = float(raw)
-            except (TypeError, ValueError):
+                if isinstance(raw,str): raw=raw.replace(",","").replace("₹","").strip()
+                numeric=float(raw)
+            except (TypeError,ValueError):
                 continue
-            if numeric <= 0:
-                continue
-            title = str(item.get("title", "")).lower()
-            source = str(item.get("source", "")).lower()
-            hits = sum(token in title for token in tokens)
-            score = hits * 3 + (10 if product_name.lower() in title else 0) + (1 if "india" in title or "india" in source else 0)
-            candidates.append((score, numeric))
-
-        if not candidates:
-            return None
+            if numeric<=0: continue
+            title=str(item.get("title","")).lower()
+            hits=sum(token in title for token in tokens)
+            score=hits*3+(10 if product_name.lower() in title else 0)
+            candidates.append((score,numeric))
+        if not candidates: return None
         candidates.sort(reverse=True)
-        best_score = candidates[0][0]
-        best_prices = [price for score, price in candidates if score == best_score]
-        return float(np.median(best_prices[:5]))
+        best=candidates[0][0]
+        prices=[p for s,p in candidates if s==best]
+        return float(np.median(prices[:5]))
     except Exception:
         return None
-
 
 @st.cache_data(ttl=900, show_spinner=False)
 def get_weather(city):
     try:
-        response = requests.get(
-            "https://geocoding-api.open-meteo.com/v1/search",
-            params={"name": city, "count": 1}, timeout=5
-        )
-        response.raise_for_status()
-        results = response.json().get("results", [])
-        if not results:
-            return 25.0
-        lat, lon = results[0]["latitude"], results[0]["longitude"]
-        weather = requests.get(
-            "https://api.open-meteo.com/v1/forecast",
-            params={"latitude": lat, "longitude": lon, "current_weather": "true"}, timeout=5
-        )
-        weather.raise_for_status()
-        return float(weather.json()["current_weather"]["temperature"])
-    except Exception:
-        return 25.0
-
+        r=requests.get("https://geocoding-api.open-meteo.com/v1/search",params={"name":city,"count":1},timeout=4)
+        r.raise_for_status(); rs=r.json().get("results",[])
+        if not rs: return 25.0
+        lat,lon=rs[0]["latitude"],rs[0]["longitude"]
+        w=requests.get("https://api.open-meteo.com/v1/forecast",params={"latitude":lat,"longitude":lon,"current_weather":"true"},timeout=4)
+        w.raise_for_status(); return float(w.json()["current_weather"]["temperature"])
+    except Exception: return 25.0
 
 @st.cache_data
 def get_holidays(year, month):
-    india_holidays = holidays.India(years=year)
-    total_days = calendar.monthrange(year, month)[1]
-    return sum(
-        1 for d in range(1, total_days + 1)
-        if datetime.date(year, month, d).weekday() >= 5
-        or datetime.date(year, month, d) in india_holidays
-    )
-
+    india_holidays=holidays.India(years=year)
+    days=calendar.monthrange(year,month)[1]
+    return sum(1 for d in range(1,days+1) if datetime.date(year,month,d).weekday()>=5 or datetime.date(year,month,d) in india_holidays)
 
 @st.cache_data
-def simulate_viral_score(product):
-    rng = np.random.default_rng(sum(ord(c) for c in product))
-    return int(rng.integers(30, 90))
+def trend_score(product):
+    rng=np.random.default_rng(sum(ord(c) for c in product))
+    return int(rng.integers(30,90))
 
 # ==============================
 # MODEL
 # ==============================
 @st.cache_data
 def load_data():
-    rng = np.random.default_rng(42)
-    df = pd.DataFrame({
-        "holiday_count": rng.integers(0, 10, 100),
-        "avg_temp": rng.integers(10, 40, 100),
-        "viral_score": rng.integers(0, 100, 100)
-    })
-    df["sales"] = 200 + df["holiday_count"] * 50 + df["avg_temp"] * 10 + df["viral_score"] * 5
+    rng=np.random.default_rng(42)
+    df=pd.DataFrame({"holiday_count":rng.integers(0,10,100),"avg_temp":rng.integers(10,40,100),"viral_score":rng.integers(0,100,100)})
+    df["sales"]=200+df["holiday_count"]*50+df["avg_temp"]*10+df["viral_score"]*5
     return df
-
 
 @st.cache_resource
 def train_model(df):
-    model = RandomForestRegressor(
-        n_estimators=200,
-        max_depth=12,
-        random_state=42,
-        n_jobs=-1
-    )
-    model.fit(df[["holiday_count", "avg_temp", "viral_score"]], df["sales"])
+    model=RandomForestRegressor(n_estimators=160,max_depth=12,random_state=42,n_jobs=-1)
+    model.fit(df[["holiday_count","avg_temp","viral_score"]],df["sales"])
     return model
-
-model = train_model(load_data())
+model=train_model(load_data())
 
 # ==============================
-# SIDEBAR
+# NAVIGATION
 # ==============================
 with st.sidebar:
-    st.markdown("# 🚀 AIDP")
-    st.caption("Demand Intelligence Platform")
+    st.markdown("## 📊 OptiRetail AI")
+    st.caption("Analyze · Predict · Price")
     st.divider()
     if st.session_state.user:
-        st.markdown(f"**{st.session_state.user.get('email','Business User')}**")
-        if st.button("Overview", use_container_width=True):
-            st.session_state.page = "dashboard"
-            st.rerun()
-        if st.button("Forecast", use_container_width=True):
-            st.session_state.page = "dashboard"
-            st.rerun()
-        if st.button("Settings", use_container_width=True):
-            st.session_state.page = "settings"
-            st.rerun()
+        st.caption(st.session_state.user.get("email","Business User"))
+        if st.button("⌂  Dashboard",use_container_width=True): st.session_state.page="dashboard"; st.rerun()
+        if st.button("⌕  Product Analysis",use_container_width=True): st.session_state.page="dashboard"; st.rerun()
+        if st.button("▥  Demand Forecasting",use_container_width=True): st.session_state.page="dashboard"; st.rerun()
+        if st.button("⌁  Dynamic Pricing",use_container_width=True): st.session_state.page="dashboard"; st.rerun()
+        if st.button("◎  Market Insights",use_container_width=True): st.session_state.page="dashboard"; st.rerun()
+        if st.button("☆  Saved Analyses",use_container_width=True): st.session_state.page="dashboard"; st.rerun()
         st.divider()
-        if st.button("Sign out", use_container_width=True):
-            st.session_state.user = None
-            st.session_state.page = "welcome"
-            st.rerun()
-    else:
-        st.markdown("### Built for modern retail")
-        st.caption("Forecast demand. Protect inventory. Make faster decisions.")
+        if st.button("◯  Account",use_container_width=True): st.session_state.page="settings"; st.rerun()
+        if st.button("⚙  Settings",use_container_width=True): st.session_state.page="settings"; st.rerun()
+        if st.button("Sign out",use_container_width=True): st.session_state.user=None; st.session_state.page="welcome"; st.rerun()
 
 # ==============================
 # WELCOME
 # ==============================
-if st.session_state.page == "welcome":
-    st.markdown("<div class='hero'><div class='eyebrow'>AI-POWERED RETAIL INTELLIGENCE</div><h1>Turn market signals into smarter decisions.</h1><p>AIDP brings demand forecasting, inventory planning, weather context, holiday patterns and market pricing into one business workspace.</p></div>", unsafe_allow_html=True)
-    left, right = st.columns([1.35,.85], gap="large")
-    with left:
-        st.markdown("<div class='card'><span class='pill'>● SYSTEM READY</span><h2 style='margin-top:16px;'>One workspace. Smarter retail decisions.</h2><p style='color:#94a3b8;line-height:1.85;'>A customer-ready interface designed to move your business from reactive decisions to proactive demand planning.</p></div>", unsafe_allow_html=True)
-        a,b,c = st.columns(3)
-        a.metric("Demand", "AI Forecast")
-        b.metric("Inventory", "+10% Buffer")
-        c.metric("Signals", "Live Context")
-    with right:
-        st.markdown("<div class='card'><div class='eyebrow'>BUSINESS PORTAL</div><h2>Get started</h2><p style='color:#94a3b8;'>Create a workspace or sign in to access your intelligence console.</p></div>", unsafe_allow_html=True)
-        if st.button("Sign in to AIDP", use_container_width=True):
-            st.session_state.page="login"
-            st.rerun()
-        if st.button("Create business account", use_container_width=True):
-            st.session_state.page="signup"
-            st.rerun()
+if st.session_state.page=="welcome":
+    st.markdown("""
+    <div class='hero'>
+      <div class='eyebrow'>AI-POWERED RETAIL INTELLIGENCE</div>
+      <h1>Turn market data into <span class='green-text'>smarter decisions.</span></h1>
+      <p>OptiRetail AI combines demand forecasting, inventory planning, live market pricing and external signals in one clear workspace.</p>
+    </div>
+    """,unsafe_allow_html=True)
+    c1,c2,c3=st.columns(3)
+    with c1:
+        st.markdown("<div class='card'><span class='pill'>DEMAND</span><h3>Forecast with context</h3><p class='small-note'>Use holidays, weather and demand signals to estimate upcoming requirements.</p></div>",unsafe_allow_html=True)
+    with c2:
+        st.markdown("<div class='card'><span class='pill'>PRICE</span><h3>Understand the market</h3><p class='small-note'>Use current shopping-market data as a reference before pricing decisions.</p></div>",unsafe_allow_html=True)
+    with c3:
+        st.markdown("<div class='feature'><h3>Ready for smarter retail?</h3><p>Create an account and open your intelligence workspace.</p></div>",unsafe_allow_html=True)
+    b1,b2=st.columns([1,1])
+    with b1:
+        if st.button("Get Started →",use_container_width=True): st.session_state.page="signup"; st.rerun()
+    with b2:
+        if st.button("Login",use_container_width=True): st.session_state.page="login"; st.rerun()
 
 # ==============================
 # LOGIN
 # ==============================
-elif st.session_state.page == "login":
-    st.markdown("<div class='hero'><div class='eyebrow'>SECURE BUSINESS ACCESS</div><h1>Welcome back.</h1><p>Sign in to continue to your AIDP workspace.</p></div>", unsafe_allow_html=True)
+elif st.session_state.page=="login":
+    st.markdown("<div class='hero'><div class='eyebrow'>ACCOUNT ACCESS</div><h1>Welcome <span class='green-text'>back.</span></h1><p>Sign in to continue to your OptiRetail AI workspace.</p></div>",unsafe_allow_html=True)
     with st.form("login_form"):
         email=st.text_input("Business email")
-        password=st.text_input("Password", type="password")
-        if st.form_submit_button("Sign in", use_container_width=True):
+        password=st.text_input("Password",type="password")
+        if st.form_submit_button("Login",use_container_width=True):
             user=login(email,password)
             if user:
-                st.session_state.user=user
-                st.session_state.page="dashboard"
-                st.rerun()
-            else:
-                st.error("Invalid credentials.")
+                st.session_state.user=user; st.session_state.page="dashboard"; st.rerun()
+            else: st.error("Invalid credentials. Please create an account first.")
 
 # ==============================
 # SIGNUP
 # ==============================
-elif st.session_state.page == "signup":
-    st.markdown("<div class='hero'><div class='eyebrow'>BUSINESS ONBOARDING</div><h1>Build your intelligence workspace.</h1><p>Create your business profile and start using AIDP.</p></div>", unsafe_allow_html=True)
+elif st.session_state.page=="signup":
+    st.markdown("<div class='hero'><div class='eyebrow'>BUSINESS ONBOARDING</div><h1>Create your <span class='green-text'>OptiRetail AI</span> workspace.</h1><p>Set up your profile and start making data-backed retail decisions.</p></div>",unsafe_allow_html=True)
     with st.form("signup_form"):
         email=st.text_input("Business email")
-        password=st.text_input("Password", type="password")
+        password=st.text_input("Password",type="password")
         gst=st.text_input("GST Number")
-        turnover=st.selectbox("Annual Turnover", ["1–5 Lakh","5–10 Lakh","10–15 Lakh","15–50 Lakh","50 Lakh+"])
-        if st.form_submit_button("Create account", use_container_width=True):
-            if not email or not password or not gst:
-                st.error("Please fill all required fields.")
+        turnover=st.selectbox("Annual Turnover",["1–5 Lakh","5–10 Lakh","10–15 Lakh","15–50 Lakh","50 Lakh+"])
+        if st.form_submit_button("Create Account",use_container_width=True):
+            if not email or not password or not gst: st.error("Please fill all required fields.")
             else:
                 ok,msg=signup(email,password,gst,turnover)
-                if ok:
-                    st.success(msg)
-                    st.session_state.page="login"
-                    st.rerun()
-                else:
-                    st.error(msg)
+                if ok: st.success(msg); st.session_state.page="login"; st.rerun()
+                else: st.error(msg)
 
 # ==============================
 # SETTINGS
 # ==============================
-elif st.session_state.page == "settings" and st.session_state.user:
-    st.markdown("<div class='hero'><div class='eyebrow'>WORKSPACE</div><h1>Business settings</h1><p>Manage the business information associated with your workspace.</p></div>", unsafe_allow_html=True)
+elif st.session_state.page=="settings" and st.session_state.user:
+    st.markdown("<div class='hero'><div class='eyebrow'>WORKSPACE</div><h1>Business <span class='green-text'>settings.</span></h1><p>Manage the business information associated with your OptiRetail AI workspace.</p></div>",unsafe_allow_html=True)
     user=st.session_state.user
-    st.markdown("<div class='card'><div class='eyebrow'>ACCOUNT PROFILE</div><h2>Business details</h2></div>", unsafe_allow_html=True)
     c1,c2,c3=st.columns(3)
     c1.metric("Account","Active")
     c2.metric("Email",user.get("email","N/A"))
     c3.metric("Turnover",user.get("turnover","N/A"))
-    st.info("AIDP demo authentication is active. SerpAPI is used for market-price intelligence.")
+    st.info("OptiRetail AI is using SerpAPI for live market-price intelligence.")
 
 # ==============================
 # DASHBOARD
 # ==============================
-elif st.session_state.page == "dashboard" and st.session_state.user:
-    st.markdown("<div class='hero'><div class='eyebrow'>LIVE INTELLIGENCE CONSOLE</div><h1>Good decisions start with good signals.</h1><p>Configure your context, read the market pulse, generate a demand forecast and translate it into an inventory action.</p></div>", unsafe_allow_html=True)
+elif st.session_state.page=="dashboard" and st.session_state.user:
+    st.markdown("<div class='topbar'><div><div class='brand'><div class='logo'>↗</div><div><div class='brand-title'>OptiRetail AI</div><div class='brand-sub'>AI Demand Intelligence · Analyze · Predict · Price</div></div></div></div><div class='small-note'>Data is the compass for better business decisions.</div></div>",unsafe_allow_html=True)
+    st.markdown("<div class='hero'><div class='eyebrow'>PRODUCT INTELLIGENCE</div><h1>Make your next <span class='green-text'>retail decision</span> with confidence.</h1><p>Enter a product, select the market and forecast period, then generate one clear view of demand, stock and pricing guidance.</p></div>",unsafe_allow_html=True)
 
-    st.markdown("### Forecast setup")
+    st.markdown("<div class='section-title'>Analyse a product</div>",unsafe_allow_html=True)
     c1,c2,c3=st.columns([1.6,1,1])
-    with c1:
-        product=st.text_input("Product", value=st.session_state.product)
-    with c2:
-        city=st.text_input("City", value=st.session_state.city)
+    with c1: product=st.text_input("Product",value=st.session_state.product,placeholder="e.g. iPhone 15, Nike Air Force 1, Wheat Flour")
+    with c2: city=st.text_input("Market / City",value=st.session_state.city)
     with c3:
         months=list(calendar.month_name)[1:]
-        month_name=st.selectbox("Forecast month", months, index=months.index(st.session_state.month_name))
+        month_name=st.selectbox("Forecast month",months,index=months.index(st.session_state.month_name))
     st.session_state.product,st.session_state.city,st.session_state.month_name=product,city,month_name
 
-    month=months.index(month_name)+1
-    year=datetime.datetime.now().year
-    holiday=get_holidays(year,month)
-    temp=get_weather(city)
-    viral=simulate_viral_score(product)
-
-    st.markdown("### Market pulse")
-    k1,k2,k3,k4=st.columns(4)
-    k1.markdown(f"<div class='kpi'><small>Temperature</small><strong>{temp:.1f}°C</strong></div>",unsafe_allow_html=True)
-    k2.markdown(f"<div class='kpi'><small>Holiday Days</small><strong>{holiday}</strong></div>",unsafe_allow_html=True)
-    k3.markdown(f"<div class='kpi'><small>Trend Score</small><strong>{viral}/100</strong></div>",unsafe_allow_html=True)
-    current_price=st.session_state.get("current_price")
-    price_text=f"₹{current_price:,.2f}" if isinstance(current_price,(int,float)) else "Refresh"
-    k4.markdown(f"<div class='kpi'><small>Market Price</small><strong>{price_text}</strong></div>",unsafe_allow_html=True)
-
-    price_col, forecast_col = st.columns([1,3])
-    with price_col:
-        if st.button("Refresh market price", use_container_width=True):
-            fresh_price = fetch_product_price(product)
-            if fresh_price is not None:
-                st.session_state.current_price = fresh_price
-                st.success(f"Market price updated: ₹{fresh_price:,.2f}")
-            else:
-                st.warning("No reliable shopping price found for this product. Try a more specific product name.")
+    analyze,forecast=st.columns([1,2])
+    with analyze:
+        if st.button("Refresh market price",use_container_width=True):
+            with st.spinner("Fetching market price..."):
+                p=fetch_product_price(product)
+            if p is None: st.warning("No reliable shopping price found. Use a specific product name.")
+            else: st.session_state.current_price=p; st.success(f"Market reference: ₹{p:,.2f}")
             st.rerun()
-    with forecast_col:
-        if st.button("Generate AI forecast", use_container_width=True):
-            input_df=pd.DataFrame({"holiday_count":[holiday],"avg_temp":[temp],"viral_score":[viral]})
-            pred=float(model.predict(input_df)[0])
-            inventory=float(pred*1.10)
-            market_price=st.session_state.get("current_price")
-            if isinstance(market_price,(int,float)):
-                optimized_price=float(market_price * (1 + np.clip((pred-300)/3000, -0.08, 0.08)))
-            else:
-                optimized_price=None
-            st.session_state.last_prediction={"pred":pred,"inventory":inventory,"optimized_price":optimized_price}
+    with forecast:
+        if st.button("Generate AI Decision →",use_container_width=True):
+            month=months.index(month_name)+1; year=datetime.datetime.now().year
+            h=get_holidays(year,month); temp=get_weather(city); trend=trend_score(product)
+            inp=pd.DataFrame({"holiday_count":[h],"avg_temp":[temp],"viral_score":[trend]})
+            pred=float(model.predict(inp)[0]); stock=float(np.ceil(pred*1.10))
+            market=st.session_state.get("current_price")
+            suggested=float(market*(1+np.clip((pred-300)/3000,-0.08,0.08))) if isinstance(market,(int,float)) else None
+            st.session_state.last_prediction={"pred":pred,"stock":stock,"suggested":suggested,"temp":temp,"holiday":h,"trend":trend,"market":market}
 
-    result=st.session_state.last_prediction
-    if result:
-        pred=result["pred"]; inventory=result["inventory"]; optimized_price=result.get("optimized_price")
-        r1,r2,r3=st.columns([1.1,1.1,1])
-        with r1:
-            st.markdown("<div class='card'><div class='eyebrow'>AI FORECAST</div>",unsafe_allow_html=True)
-            st.metric("Expected monthly demand",f"{int(pred):,} units")
-            st.caption("Model-estimated demand from current business signals.")
-            st.markdown("</div>",unsafe_allow_html=True)
-        with r2:
-            st.markdown("<div class='card'><div class='eyebrow'>INVENTORY ACTION</div>",unsafe_allow_html=True)
-            st.metric("Recommended stock",f"{int(inventory):,} units")
-            st.caption("Forecast plus a 10% planning buffer.")
-            st.markdown("</div>",unsafe_allow_html=True)
-        with r3:
-            st.markdown("<div class='card'><div class='eyebrow'>PRICING GUIDANCE</div>",unsafe_allow_html=True)
-            if optimized_price is not None:
-                st.metric("Suggested selling price",f"₹{optimized_price:,.2f}")
-                st.caption("Reference price adjusted within an 8% demand-response band.")
-            else:
-                st.metric("Suggested selling price","Refresh price")
-                st.caption("Get a market price first to calculate pricing guidance.")
-            st.markdown("</div>",unsafe_allow_html=True)
+    current=st.session_state.get("current_price")
+    current_text=f"₹{current:,.2f}" if isinstance(current,(int,float)) else "Refresh"
+    k1,k2,k3,k4=st.columns(4)
+    k1.markdown(f"<div class='kpi'><small>Forecasted demand</small><strong>{int(st.session_state.last_prediction['pred']):,} units</strong><span>AI demand estimate</span></div>" if st.session_state.last_prediction else "<div class='kpi'><small>Forecasted demand</small><strong>—</strong><span>Generate a decision</span></div>",unsafe_allow_html=True)
+    k2.markdown(f"<div class='kpi'><small>Recommended stock</small><strong>{int(st.session_state.last_prediction['stock']):,} units</strong><span>Includes 10% planning buffer</span></div>" if st.session_state.last_prediction else "<div class='kpi'><small>Recommended stock</small><strong>—</strong><span>Inventory action</span></div>",unsafe_allow_html=True)
+    k3.markdown(f"<div class='kpi'><small>Market reference</small><strong>{current_text}</strong><span>SerpAPI shopping signal</span></div>",unsafe_allow_html=True)
+    k4.markdown(f"<div class='kpi'><small>Suggested price</small><strong>{('₹'+format(st.session_state.last_prediction['suggested'],',.2f')) if st.session_state.last_prediction and st.session_state.last_prediction.get('suggested') is not None else '—'}</strong><span>Demand-response guidance</span></div>",unsafe_allow_html=True)
 
-        st.markdown("### Decision view")
-        chart_df=pd.DataFrame({"Metric":["Demand","Recommended inventory"],"Units":[pred,inventory]}).set_index("Metric")
-        st.bar_chart(chart_df,use_container_width=True)
+    if st.session_state.last_prediction:
+        r=st.session_state.last_prediction
+        left,right=st.columns([1.5,1])
+        with left:
+            st.markdown("<div class='card'><div class='eyebrow'>DEMAND FORECAST</div><h2 style='margin:0 0 5px'>Demand outlook</h2><div class='small-note'>Selected context: product + city + forecast month</div></div>",unsafe_allow_html=True)
+            chart=pd.DataFrame({"Metric":["Demand","Recommended Stock"],"Units":[r["pred"],r["stock"]]}).set_index("Metric")
+            st.bar_chart(chart,use_container_width=True)
+        with right:
+            st.markdown("<div class='card'><div class='eyebrow'>PRICING GUIDANCE</div><h2 style='margin:0 0 8px'>Price optimization</h2><div class='small-note'>Reference price + bounded demand response</div></div>",unsafe_allow_html=True)
+            if r.get("suggested") is not None:
+                st.metric("Suggested selling price",f"₹{r['suggested']:,.2f}")
+                st.success("Pricing guidance is available using the current market reference.")
+            else:
+                st.info("Refresh the market price first to calculate pricing guidance.")
+
+        s1,s2,s3=st.columns(3)
+        s1.info(f"**Weather:** {r['temp']:.1f}°C")
+        s2.info(f"**Holiday / weekend days:** {r['holiday']}")
+        s3.info(f"**Trend signal:** {r['trend']}/100")
 
         st.markdown("### AI recommendation")
-        if viral>=70:
-            st.success("High demand momentum detected. Increase replenishment readiness and review the suggested price before the forecast period.")
-        elif holiday>=8:
-            st.info("Elevated holiday activity detected. Consider holding additional stock ahead of the forecast month.")
+        if r["trend"]>=70:
+            st.success("High demand momentum: keep replenishment readiness high and review the suggested price before the forecast period.")
+        elif r["holiday"]>=8:
+            st.info("Elevated calendar activity: consider carrying additional safety stock.")
         else:
-            st.warning("Demand conditions appear relatively stable. Maintain the recommended inventory buffer and monitor movement.")
+            st.warning("Stable conditions: use the recommended stock as a planning baseline and monitor sell-through.")
     else:
-        st.markdown("<div class='card'><div class='eyebrow'>READY</div><h2>Generate your first forecast</h2><p style='color:#94a3b8;'>Choose a product, city and month above. Refresh the market price when needed, then generate the AI forecast.</p></div>",unsafe_allow_html=True)
-
-    st.markdown("### Business context")
-    b1,b2,b3=st.columns(3)
-    b1.info("**Inventory:** Forecast is a planning baseline; adjust for current stock and supplier lead time.")
-    b2.info("**Pricing:** SerpAPI provides a market reference; AIDP applies a bounded demand-response adjustment.")
-    b3.info("**External signals:** Weather and India holiday calendars are refreshed for the selected location/month.")
+        st.markdown("<div class='feature'><h3>Your decision workspace is ready.</h3><p>Refresh the market price for your product, then generate the AI decision to see demand, stock and pricing guidance together.</p></div>",unsafe_allow_html=True)
+        st.markdown("### What OptiRetail AI brings together")
+        a,b,c=st.columns(3)
+        a.info("**Predict** · Demand forecast based on business signals")
+        b.info("**Protect** · Recommended stock with planning buffer")
+        c.info("**Price** · Market reference + bounded pricing guidance")
