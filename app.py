@@ -65,7 +65,7 @@ html,body,[class*="css"]{font-family:'DM Sans',sans-serif;color:var(--ink)}
 .auth-title{font-family:'Plus Jakarta Sans';font-size:1.95rem;font-weight:800;letter-spacing:-1px;color:#0f172a;margin:0}.auth-sub{color:#64748b;margin:.4rem 0 1.4rem}
 .stButton>button,.stFormSubmitButton>button{border:0!important;border-radius:12px!important;min-height:44px!important;font-weight:800!important;background:linear-gradient(135deg,#079568,#047a55)!important;color:#fff!important;box-shadow:0 8px 22px rgba(5,150,105,.16)}
 .stButton>button:hover,.stFormSubmitButton>button:hover{transform:translateY(-1px)}
-div[data-testid="stTextInput"] input,div[data-testid="stNumberInput"] input,div[data-testid="stSelectbox"] div[data-baseweb="select"]>div,div[data-testid="stTextArea"] textarea{background:#ffffff!important;color:#0f172a!important;border:1px solid #cfe0d9!important;border-radius:12px!important;caret-color:#047857!important}
+div[data-testid="stTextInput"] input,div[data-testid="stNumberInput"] input,div[data-testid="stSelectbox"] div[data-baseweb="select"]>div,div[data-testid="stTextArea"] textarea{background:#ffffff!important;color:#0f172a!important;border:1px solid #cfe0d9!important;border-radius:12px!important;caret-color:#047857!important;box-shadow:none!important}
 div[data-testid="stTextInput"] input::placeholder,div[data-testid="stNumberInput"] input::placeholder,div[data-testid="stTextArea"] textarea::placeholder{color:#94a3b8!important;opacity:1!important}
 label,div[data-testid="stWidgetLabel"] p{color:#334155!important;font-weight:600!important}
 div[data-baseweb="select"] span{color:#0f172a!important}
@@ -73,11 +73,8 @@ div[data-baseweb="select"] span{color:#0f172a!important}
 [data-testid="stDataFrame"]{border-radius:16px;overflow:hidden}
 footer{visibility:hidden}
 </style>
-""", unsafe_allow_html=True)
+""",unsafe_allow_html=True)
 
-# ==============================
-# MONGODB
-# ==============================
 @st.cache_resource(show_spinner=False)
 def get_database():
     if not MONGO_URI or MongoClient is None:
@@ -93,9 +90,7 @@ db = get_database()
 users_collection = db["users"] if db is not None else None
 predictions_collection = db["predictions"] if db is not None else None
 
-# ==============================
-# AUTH
-# ==============================
+
 def signup(email, password, gst, turnover):
     email = email.strip().lower()
     if users_collection is None:
@@ -111,8 +106,9 @@ def signup(email, password, gst, turnover):
             "created_at": datetime.datetime.now(datetime.timezone.utc),
         })
         return True, "Account created successfully."
-    except Exception as exc:
-        return False, f"Signup failed: {exc}"
+    except Exception:
+        return False, "Signup failed. Please verify the database connection and try again."
+
 
 def login(email, password):
     email = email.strip().lower()
@@ -123,9 +119,7 @@ def login(email, password):
     except Exception:
         return None
 
-# ==============================
-# MARKET PRICE
-# ==============================
+
 @st.cache_data(ttl=900, show_spinner=False)
 def fetch_product_price(product_name):
     product_name = product_name.strip()
@@ -168,9 +162,7 @@ def fetch_product_price(product_name):
     except Exception:
         return None
 
-# ==============================
-# WEATHER / HOLIDAYS
-# ==============================
+
 @st.cache_data(ttl=900, show_spinner=False)
 def get_weather(city):
     try:
@@ -188,20 +180,20 @@ def get_weather(city):
     except Exception:
         return 25.0
 
+
 @st.cache_data
 def get_holidays(year, month):
     india = holidays.India(years=year)
     days = calendar.monthrange(year, month)[1]
     return sum(1 for d in range(1, days + 1) if datetime.date(year, month, d).weekday() >= 5 or datetime.date(year, month, d) in india)
 
+
 @st.cache_data
 def trend_score(product):
     rng = np.random.default_rng(sum(ord(c) for c in product))
     return int(rng.integers(30, 90))
 
-# ==============================
-# MODEL
-# ==============================
+
 @st.cache_data
 def load_data():
     rng = np.random.default_rng(42)
@@ -215,6 +207,7 @@ def load_data():
     df["sales"] += rng.normal(0, 28, len(df))
     return df
 
+
 @st.cache_resource
 def train_model(df):
     model = RandomForestRegressor(n_estimators=250, max_depth=12, min_samples_leaf=2, random_state=42, n_jobs=-1)
@@ -223,15 +216,12 @@ def train_model(df):
 
 model = train_model(load_data())
 
-# ==============================
-# SIDEBAR
-# ==============================
 with st.sidebar:
     st.markdown("<div class='sidebar-logo'>📊 OptiRetail AI</div><div class='sidebar-sub'>Analyze · Predict · Price</div>", unsafe_allow_html=True)
     st.divider()
     if st.session_state.user:
         st.caption(st.session_state.user.get("email", "Business User"))
-        nav_items = [("Dashboard","dashboard"),("Product Analysis","product"),("Demand Forecasting","forecast"),("Dynamic Pricing","pricing"),("Market Insights","market"),("Saved Analyses","saved")]
+        nav_items = [("Dashboard", "dashboard"), ("Product Analysis", "product"), ("Demand Forecasting", "forecast"), ("Dynamic Pricing", "pricing"), ("Market Insights", "market"), ("Saved Analyses", "saved")]
         for label, target in nav_items:
             if st.button(label, use_container_width=True, key=f"nav_{target}"):
                 st.session_state.page = target
@@ -245,24 +235,21 @@ with st.sidebar:
         st.markdown("### Smarter retail decisions")
         st.caption("Forecast demand. Optimize inventory. Price with confidence.")
 
-# ==============================
-# WELCOME
-# ==============================
+
 if st.session_state.page == "welcome":
     st.markdown("<div class='hero'><div class='eyebrow'>OPTIRETAIL AI</div><h1>Turn market data into <span>smarter decisions.</span></h1><p>Forecast demand, understand market signals, optimize inventory and make practical pricing decisions from one clean workspace.</p></div>", unsafe_allow_html=True)
-    a,b,c=st.columns(3)
-    a.markdown("<div class='card'><div class='eyebrow'>01 · FORECAST</div><h3>Know what will move.</h3><p class='small-note'>AI demand forecasting uses holiday, weather and trend signals.</p></div>",unsafe_allow_html=True)
-    b.markdown("<div class='card'><div class='eyebrow'>02 · INVENTORY</div><h3>Stock with confidence.</h3><p class='small-note'>Translate predicted demand into a practical planning quantity.</p></div>",unsafe_allow_html=True)
-    c.markdown("<div class='card'><div class='eyebrow'>03 · PRICE</div><h3>Price with context.</h3><p class='small-note'>Use a live market reference from SerpAPI and bounded demand response.</p></div>",unsafe_allow_html=True)
-    x,y=st.columns(2)
-    if x.button("Login →",use_container_width=True,key="home_login"): st.session_state.page="login"; st.rerun()
-    if y.button("Create account →",use_container_width=True,key="home_signup"): st.session_state.page="signup"; st.rerun()
+    a, b, c = st.columns(3)
+    a.markdown("<div class='card'><div class='eyebrow'>01 · FORECAST</div><h3>Know what will move.</h3><p class='small-note'>AI demand forecasting uses holiday, weather and trend signals.</p></div>", unsafe_allow_html=True)
+    b.markdown("<div class='card'><div class='eyebrow'>02 · INVENTORY</div><h3>Stock with confidence.</h3><p class='small-note'>Translate predicted demand into a practical planning quantity.</p></div>", unsafe_allow_html=True)
+    c.markdown("<div class='card'><div class='eyebrow'>03 · PRICE</div><h3>Price with context.</h3><p class='small-note'>Use a live market reference from SerpAPI and bounded demand response.</p></div>", unsafe_allow_html=True)
+    x, y = st.columns(2)
+    if x.button("Login →", use_container_width=True, key="home_login"):
+        st.session_state.page = "login"; st.rerun()
+    if y.button("Create account →", use_container_width=True, key="home_signup"):
+        st.session_state.page = "signup"; st.rerun()
 
-# ==============================
-# LOGIN
-# ==============================
 elif st.session_state.page == "login":
-    st.markdown("<div class='auth-wrap'><div class='auth-card'><div class='eyebrow'>WELCOME BACK</div><h2 class='auth-title'>Sign in to OptiRetail AI</h2><p class='auth-sub'>Access your retail intelligence workspace.</p>",unsafe_allow_html=True)
+    st.markdown("<div class='auth-wrap'><div class='auth-card'><div class='eyebrow'>WELCOME BACK</div><h2 class='auth-title'>Sign in to OptiRetail AI</h2><p class='auth-sub'>Access your retail intelligence workspace.</p>", unsafe_allow_html=True)
     with st.form("login_form"):
         email = st.text_input("Email address", placeholder="you@company.com")
         password = st.text_input("Password", type="password", placeholder="Enter your password")
@@ -277,16 +264,13 @@ elif st.session_state.page == "login":
             else:
                 st.error("Invalid credentials. Please check your email and password.")
     if st.button("Create an account →", key="login_signup"):
-        st.session_state.page="signup"; st.rerun()
+        st.session_state.page = "signup"; st.rerun()
     if st.button("← Back to home", key="login_back"):
-        st.session_state.page="welcome"; st.rerun()
-    st.markdown("</div></div>",unsafe_allow_html=True)
+        st.session_state.page = "welcome"; st.rerun()
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
-# ==============================
-# SIGNUP
-# ==============================
 elif st.session_state.page == "signup":
-    st.markdown("<div class='auth-wrap'><div class='auth-card'><div class='eyebrow'>BUSINESS ONBOARDING</div><h2 class='auth-title'>Create your OptiRetail AI workspace</h2><p class='auth-sub'>Set up your business profile and start making data-driven retail decisions.</p>",unsafe_allow_html=True)
+    st.markdown("<div class='auth-wrap'><div class='auth-card'><div class='eyebrow'>BUSINESS ONBOARDING</div><h2 class='auth-title'>Create your OptiRetail AI workspace</h2><p class='auth-sub'>Set up your business profile and start making data-driven retail decisions.</p>", unsafe_allow_html=True)
     with st.form("signup_form"):
         email = st.text_input("Email address", placeholder="you@company.com")
         password = st.text_input("Password", type="password", placeholder="Create a password")
@@ -296,133 +280,164 @@ elif st.session_state.page == "signup":
             if not email or not password or not gst:
                 st.error("Please fill in Email, Password and GST Number.")
             else:
-                ok,msg=signup(email,password,gst,turnover)
+                ok, msg = signup(email, password, gst, turnover)
                 if ok:
                     st.success(msg)
-                    st.session_state.page="login"
+                    st.session_state.page = "login"
                     st.rerun()
                 else:
                     st.error(msg)
     if st.button("Already have an account? Sign in →", key="signup_login"):
-        st.session_state.page="login"; st.rerun()
+        st.session_state.page = "login"; st.rerun()
     if st.button("← Back to home", key="signup_back"):
-        st.session_state.page="welcome"; st.rerun()
-    st.markdown("</div></div>",unsafe_allow_html=True)
+        st.session_state.page = "welcome"; st.rerun()
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
-# ==============================
-# SETTINGS
-# ==============================
 elif st.session_state.page == "settings" and st.session_state.user:
-    st.markdown("<div class='hero'><div class='eyebrow'>WORKSPACE</div><h1>Business settings</h1><p>Manage the business profile connected to your OptiRetail AI workspace.</p></div>",unsafe_allow_html=True)
-    u=st.session_state.user
-    a,b,c=st.columns(3)
-    a.metric("Account","Active")
-    b.metric("Email",u.get("email","N/A"))
-    c.metric("Turnover",u.get("turnover","N/A"))
-    mongo_badge="CONNECTED" if db is not None else "UNAVAILABLE"
-    mongo_class="live" if db is not None else "warn"
-    serp_badge="CONFIGURED" if SERPAPI_KEY else "MISSING"
-    serp_class="live" if SERPAPI_KEY else "warn"
-    st.markdown(f"<div class='card'><div class='eyebrow'>DATA SERVICES</div><h3>Connected services</h3><div class='signal'><b>MongoDB</b><span class='badge {mongo_class}'>{mongo_badge}</span></div><div class='signal'><b>SerpAPI</b><span class='badge {serp_class}'>{serp_badge}</span></div></div>",unsafe_allow_html=True)
+    st.markdown("<div class='hero'><div class='eyebrow'>WORKSPACE</div><h1>Business settings</h1><p>Manage the business profile connected to your OptiRetail AI workspace.</p></div>", unsafe_allow_html=True)
+    u = st.session_state.user
+    a, b, c = st.columns(3)
+    a.metric("Account", "Active")
+    b.metric("Email", u.get("email", "N/A"))
+    c.metric("Turnover", u.get("turnover", "N/A"))
+    mongo_badge = "CONNECTED" if db is not None else "UNAVAILABLE"
+    mongo_class = "live" if db is not None else "warn"
+    serp_badge = "CONFIGURED" if SERPAPI_KEY else "MISSING"
+    serp_class = "live" if SERPAPI_KEY else "warn"
+    st.markdown(f"<div class='card'><div class='eyebrow'>DATA SERVICES</div><h3>Connected services</h3><div class='signal'><b>MongoDB</b><span class='badge {mongo_class}'>{mongo_badge}</span></div><div class='signal'><b>SerpAPI</b><span class='badge {serp_class}'>{serp_badge}</span></div></div>", unsafe_allow_html=True)
 
-# ==============================
-# SHARED ANALYSIS INPUT
-# ==============================
-def render_analysis():
-    st.markdown("<div class='section-title'>Product analysis</div>",unsafe_allow_html=True)
-    c1,c2,c3=st.columns([1.6,1,1])
-    with c1: product=st.text_input("Product",value=st.session_state.product,placeholder="e.g. Amul Taaza Milk 1L",label_visibility="collapsed")
-    with c2: city=st.text_input("City",value=st.session_state.city,placeholder="Jaipur",label_visibility="collapsed")
-    with c3:
-        months=list(calendar.month_name)[1:]
-        month_name=st.selectbox("Forecast month",months,index=months.index(st.session_state.month_name),label_visibility="collapsed")
-    st.session_state.product,st.session_state.city,st.session_state.month_name=product,city,month_name
-    a,b=st.columns([1,1.2])
-    with a:
-        if st.button("Refresh market price",use_container_width=True,key="refresh_price"):
-            with st.spinner("Checking market price…"):
-                data=fetch_product_price(product)
-            if data is None:
-                st.session_state.current_price=None; st.session_state.market_data=None
-                st.warning("No reliable shopping price found. Try a specific product name.")
-            else:
-                st.session_state.current_price=data["price"]; st.session_state.market_data=data
-                st.success(f"Market reference: ₹{data['price']:,.2f}")
-            st.rerun()
-    with b:
-        if st.button("Generate AI Decision →",use_container_width=True,key="generate_decision"):
-            month_num=months.index(month_name)+1
-            year=datetime.datetime.now().year
-            holiday_count=get_holidays(year,month_num)
-            temperature=get_weather(city)
-            trend=trend_score(product)
-            input_df=pd.DataFrame({"holiday_count":[holiday_count],"avg_temp":[temperature],"viral_score":[trend]})
-            predicted=float(max(0,model.predict(input_df)[0]))
-            stock=float(np.ceil(predicted*1.10))
-            market=st.session_state.get("current_price")
-            suggested=float(market*(1+np.clip((predicted-300)/3000,-0.08,0.08))) if isinstance(market,(int,float)) else None
-            st.session_state.last_prediction={"pred":predicted,"stock":stock,"suggested":suggested,"temp":temperature,"holiday":holiday_count,"trend":trend,"market":market,"product":product,"city":city,"month":month_name}
-            if predictions_collection is not None:
-                try:
-                    predictions_collection.insert_one({"email":st.session_state.user.get("email"),"product":product,"city":city,"month":month_name,"demand":predicted,"recommended_stock":stock,"market_price":market,"suggested_price":suggested,"temperature":temperature,"holiday_days":holiday_count,"trend_score":trend,"created_at":datetime.datetime.now(datetime.timezone.utc)})
-                except Exception:
-                    pass
-    return product,city,month_name
+elif st.session_state.page in {"dashboard", "product", "forecast", "pricing", "market", "saved"} and st.session_state.user:
+    titles = {
+        "dashboard": "Make the next decision",
+        "product": "Analyze a product",
+        "forecast": "Demand forecasting",
+        "pricing": "Dynamic pricing",
+        "market": "Market insights",
+        "saved": "Saved analyses",
+    }
+    subtitles = {
+        "dashboard": "Enter a product and location, refresh the market reference, then generate a demand, inventory and pricing decision.",
+        "product": "Combine market price, weather, holidays and trend signals for a practical product decision.",
+        "forecast": "Forecast demand using the current weather, holiday and trend inputs.",
+        "pricing": "Use the market reference and predicted demand to calculate a bounded suggested selling price.",
+        "market": "Review price reference together with environmental and demand signals.",
+        "saved": "Review the most recent predictions stored in MongoDB.",
+    }
+    st.markdown(f"<div class='hero'><div class='eyebrow'>OPTIRETAIL AI · {titles[st.session_state.page].upper()}</div><h1>{titles[st.session_state.page]} <span>with confidence.</span></h1><p>{subtitles[st.session_state.page]}</p></div>", unsafe_allow_html=True)
 
-# ==============================
-# DASHBOARD
-# ==============================
-elif st.session_state.page in {"dashboard","product","forecast","pricing","market","saved"} and st.session_state.user:
-    titles={"dashboard":"Good morning. Make the next decision","product":"Analyze a product","forecast":"Demand forecasting","pricing":"Dynamic pricing","market":"Market insights","saved":"Saved analyses"}
-    subtitles={"dashboard":"Enter a product and location, refresh the market reference, then generate a demand, inventory and pricing decision.","product":"Combine market price, weather, holidays and trend signals for a practical product decision.","forecast":"Forecast demand using the current weather, holiday and trend inputs.","pricing":"Use the market reference and predicted demand to calculate a bounded suggested selling price.","market":"Review live price reference together with environmental and demand signals.","saved":"Review the most recent predictions stored in MongoDB."}
-    st.markdown(f"<div class='hero'><div class='eyebrow'>OPTIRETAIL AI · {titles[st.session_state.page].upper()}</div><h1>{titles[st.session_state.page]} <span>with confidence.</span></h1><p>{subtitles[st.session_state.page]}</p></div>",unsafe_allow_html=True)
-    if st.session_state.page=="saved":
+    if st.session_state.page == "saved":
         if predictions_collection is None:
             st.warning("MongoDB is unavailable, so saved analyses cannot be loaded.")
         else:
             try:
-                rows=list(predictions_collection.find({"email":st.session_state.user.get("email")}).sort("created_at",-1).limit(20))
+                rows = list(predictions_collection.find({"email": st.session_state.user.get("email")}).sort("created_at", -1).limit(20))
                 if rows:
-                    display=pd.DataFrame([{"Date":r.get("created_at"),"Product":r.get("product"),"City":r.get("city"),"Demand":round(r.get("demand",0),1),"Stock":round(r.get("recommended_stock",0),1),"Market Price":r.get("market_price"),"Suggested Price":r.get("suggested_price")} for r in rows])
-                    st.dataframe(display,use_container_width=True,hide_index=True)
+                    display = pd.DataFrame([{
+                        "Date": r.get("created_at"),
+                        "Product": r.get("product"),
+                        "City": r.get("city"),
+                        "Demand": round(r.get("demand", 0), 1),
+                        "Stock": round(r.get("recommended_stock", 0), 1),
+                        "Market Price": r.get("market_price"),
+                        "Suggested Price": r.get("suggested_price"),
+                    } for r in rows])
+                    st.dataframe(display, use_container_width=True, hide_index=True)
                 else:
                     st.info("No saved analyses yet. Generate a decision from the dashboard.")
             except Exception as exc:
                 st.error(f"Could not load saved analyses: {exc}")
     else:
-        product,city,month_name=render_analysis()
-        lp=st.session_state.get("last_prediction") or {}
-        current=st.session_state.get("current_price")
-        current_text=f"₹{current:,.2f}" if isinstance(current,(int,float)) else "—"
-        suggested_value=lp.get("suggested")
-        k1,k2,k3,k4=st.columns(4)
-        k1.markdown(f"<div class='kpi'><small>Forecasted demand</small><strong>{int(lp.get('pred',0)):,} units</strong><span>{'AI demand estimate' if lp else 'Generate a decision'}</span></div>",unsafe_allow_html=True)
-        k2.markdown(f"<div class='kpi'><small>Recommended stock</small><strong>{int(lp.get('stock',0)):,} units</strong><span>10% planning buffer</span></div>",unsafe_allow_html=True)
-        k3.markdown(f"<div class='kpi'><small>Market reference</small><strong>{current_text}</strong><span>SerpAPI shopping signal</span></div>",unsafe_allow_html=True)
-        k4.markdown(f"<div class='kpi'><small>Suggested price</small><strong>{f'₹{suggested_value:,.2f}' if isinstance(suggested_value,(int,float)) else '—'}</strong><span>Demand-aware bound</span></div>",unsafe_allow_html=True)
+        st.markdown("<div class='section-title'>Product analysis</div>", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns([1.6, 1, 1])
+        with c1:
+            product = st.text_input("Product", value=st.session_state.product, placeholder="e.g. Amul Taaza Milk 1L", label_visibility="collapsed")
+        with c2:
+            city = st.text_input("City", value=st.session_state.city, placeholder="Jaipur", label_visibility="collapsed")
+        with c3:
+            months = list(calendar.month_name)[1:]
+            month_name = st.selectbox("Forecast month", months, index=months.index(st.session_state.month_name), label_visibility="collapsed")
+        st.session_state.product, st.session_state.city, st.session_state.month_name = product, city, month_name
+
+        a, b = st.columns([1, 1.2])
+        with a:
+            if st.button("Refresh market price", use_container_width=True, key="refresh_price"):
+                with st.spinner("Checking market price…"):
+                    data = fetch_product_price(product)
+                if data is None:
+                    st.session_state.current_price = None
+                    st.session_state.market_data = None
+                    st.warning("No reliable shopping price found. Try a specific product name.")
+                else:
+                    st.session_state.current_price = data["price"]
+                    st.session_state.market_data = data
+                    st.success(f"Market reference: ₹{data['price']:,.2f}")
+                st.rerun()
+        with b:
+            if st.button("Generate AI Decision →", use_container_width=True, key="generate_decision"):
+                month_num = months.index(month_name) + 1
+                year = datetime.datetime.now().year
+                holiday_count = get_holidays(year, month_num)
+                temperature = get_weather(city)
+                trend = trend_score(product)
+                input_df = pd.DataFrame({
+                    "holiday_count": [holiday_count],
+                    "avg_temp": [temperature],
+                    "viral_score": [trend],
+                })
+                predicted = float(max(0, model.predict(input_df)[0]))
+                stock = float(np.ceil(predicted * 1.10))
+                market = st.session_state.get("current_price")
+                suggested = float(market * (1 + np.clip((predicted - 300) / 3000, -0.08, 0.08))) if isinstance(market, (int, float)) else None
+                st.session_state.last_prediction = {
+                    "pred": predicted, "stock": stock, "suggested": suggested,
+                    "temp": temperature, "holiday": holiday_count, "trend": trend,
+                    "market": market, "product": product, "city": city, "month": month_name,
+                }
+                if predictions_collection is not None:
+                    try:
+                        predictions_collection.insert_one({
+                            "email": st.session_state.user.get("email"),
+                            "product": product, "city": city, "month": month_name,
+                            "demand": predicted, "recommended_stock": stock,
+                            "market_price": market, "suggested_price": suggested,
+                            "temperature": temperature, "holiday_days": holiday_count,
+                            "trend_score": trend,
+                            "created_at": datetime.datetime.now(datetime.timezone.utc),
+                        })
+                    except Exception:
+                        pass
+
+        lp = st.session_state.get("last_prediction") or {}
+        current = st.session_state.get("current_price")
+        current_text = f"₹{current:,.2f}" if isinstance(current, (int, float)) else "—"
+        suggested_value = lp.get("suggested")
+        k1, k2, k3, k4 = st.columns(4)
+        k1.markdown(f"<div class='kpi'><small>Forecasted demand</small><strong>{int(lp.get('pred',0)):,} units</strong><span>{'AI demand estimate' if lp else 'Generate a decision'}</span></div>", unsafe_allow_html=True)
+        k2.markdown(f"<div class='kpi'><small>Recommended stock</small><strong>{int(lp.get('stock',0)):,} units</strong><span>10% planning buffer</span></div>", unsafe_allow_html=True)
+        k3.markdown(f"<div class='kpi'><small>Market reference</small><strong>{current_text}</strong><span>SerpAPI shopping signal</span></div>", unsafe_allow_html=True)
+        k4.markdown(f"<div class='kpi'><small>Suggested price</small><strong>{f'₹{suggested_value:,.2f}' if isinstance(suggested_value,(int,float)) else '—'}</strong><span>Demand-aware bound</span></div>", unsafe_allow_html=True)
 
         if lp:
-            c1,c2=st.columns([1.5,1])
+            c1, c2 = st.columns([1.5, 1])
             with c1:
-                st.markdown("<div class='card'><div class='eyebrow'>DEMAND FORECAST</div><h3>Demand outlook</h3>",unsafe_allow_html=True)
-                months= list(calendar.month_name)[1:]
-                base=max(1,lp['pred'])
-                # Deterministic 12-month outlook shaped around the selected forecast month.
-                x=np.arange(12)
-                seasonal=1+0.10*np.sin((x+months.index(lp['month']))*2*np.pi/12)
-                forecast=base*seasonal
-                hist=np.maximum(0,base*(0.82+0.08*np.sin((x+1)*2*np.pi/12)))
-                chart=pd.DataFrame({"Month":months,"Historical demand":np.round(hist),"Forecast demand":np.round(forecast)})
-                st.line_chart(chart.set_index("Month"),height=320)
-                st.markdown("</div>",unsafe_allow_html=True)
+                st.markdown("<div class='card'><div class='eyebrow'>DEMAND FORECAST</div><h3>12-month demand outlook</h3><div class='small-note'>Historical baseline and forecast trajectory</div>", unsafe_allow_html=True)
+                months = list(calendar.month_name)[1:]
+                base = max(1, lp.get('pred', 1))
+                x = np.arange(12)
+                seasonal = 1 + 0.10 * np.sin((x + months.index(lp.get('month', months[0]))) * 2 * np.pi / 12)
+                forecast = base * seasonal
+                hist = np.maximum(0, base * (0.82 + 0.08 * np.sin((x + 1) * 2 * np.pi / 12)))
+                chart = pd.DataFrame({"Month": months, "Historical demand": np.round(hist), "Forecast demand": np.round(forecast)})
+                st.line_chart(chart.set_index("Month"), height=320)
+                st.markdown("</div>", unsafe_allow_html=True)
             with c2:
-                st.markdown(f"<div class='card'><div class='eyebrow'>AI DECISION</div><h3>What the model sees</h3><div class='signal'><b>Weather</b><span>{lp['temp']:.1f} °C</span></div><div class='signal'><b>Holiday days</b><span>{lp['holiday']}</span></div><div class='signal'><b>Trend score</b><span>{lp['trend']}/100</span></div><div class='signal'><b>Market reference</b><span>{current_text}</span></div></div>",unsafe_allow_html=True)
-                if lp['temp']>=32:
-                    action="Demand signal elevated by warm weather — keep additional safety stock for heat-sensitive categories."
-                elif lp['temp']<=18:
-                    action="Cooler weather detected — demand may shift toward seasonal categories; keep inventory conservative."
+                st.markdown(f"<div class='card'><div class='eyebrow'>AI DECISION</div><h3>Signals used</h3><div class='signal'><b>Weather</b><span>{lp.get('temp',0):.1f} °C</span></div><div class='signal'><b>Holiday days</b><span>{lp.get('holiday',0)}</span></div><div class='signal'><b>Trend score</b><span>{lp.get('trend',0)}/100</span></div><div class='signal'><b>Market reference</b><span>{current_text}</span></div></div>", unsafe_allow_html=True)
+                if lp.get('temp', 25) >= 32:
+                    action = "Warm weather detected — consider additional safety stock for heat-sensitive categories."
+                elif lp.get('temp', 25) <= 18:
+                    action = "Cool weather detected — keep inventory conservative for weather-sensitive categories."
                 else:
-                    action="Weather is within a moderate range; holiday and trend signals drive the current decision."
-                st.markdown(f"<div class='decision'><h3>Recommended action</h3><p>{action}</p></div>",unsafe_allow_html=True)
+                    action = "Weather is moderate; holiday and trend signals are contributing to the current decision."
+                st.markdown(f"<div class='decision'><h3>Recommended action</h3><p>{action}</p></div>", unsafe_allow_html=True)
         else:
-            st.markdown("<div class='card'><div class='eyebrow'>READY</div><h3>Generate your first AI decision</h3><p class='small-note'>Refresh the market reference, then click Generate AI Decision to populate demand, inventory, pricing and the forecast chart.</p></div>",unsafe_allow_html=True)
+            st.markdown("<div class='card'><div class='eyebrow'>READY</div><h3>Generate your first AI decision</h3><p class='small-note'>Refresh the market reference, then generate a decision to populate demand, inventory, pricing and forecast insights.</p></div>", unsafe_allow_html=True)
