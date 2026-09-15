@@ -191,7 +191,6 @@ def monthly_weather(city):
 def fallback_monthly_weather(latitude):
     base = 25.0
     amplitude = min(12.0, 7.0 + abs(latitude) * 0.12)
-    # Peak in the northern hemisphere around May/June; opposite for southern locations.
     phase = 5 if latitude >= 0 else 11
     values = {}
     for month in range(1, 13):
@@ -361,7 +360,21 @@ def render_product_page():
     render_analysis_inputs()
     lp = st.session_state.last_prediction
     if lp:
-        st.markdown(f"<div class='card'><div class='eyebrow'>LATEST RESULT</div><h3>{lp['product']} · {lp['city']} · {lp['month']}</h3><p class='small'>Forecast demand: <b>{int(lp['pred']):,} units</b> · Weather: <b>{lp['temp']:.1f} °C</b> · Holiday days: <b>{lp['holiday']}</b> · Weather source: <b>{lp['weather_source']}</b></p></div>", unsafe_allow_html=True)
+        # Use .get() for every field because Streamlit can preserve an older
+        # session_state prediction after the app code has been updated.
+        product = lp.get("product", "—")
+        city = lp.get("city", "—")
+        month = lp.get("month", "—")
+        pred = lp.get("pred", 0)
+        temp = lp.get("temp", 25.0)
+        holiday = lp.get("holiday", 0)
+        weather_source = lp.get("weather_source", "Seasonal fallback")
+        st.markdown(
+            f"<div class='card'><div class='eyebrow'>LATEST RESULT</div><h3>{product} · {city} · {month}</h3>"
+            f"<p class='small'>Forecast demand: <b>{int(pred):,} units</b> · Weather: <b>{float(temp):.1f} °C</b> · "
+            f"Holiday days: <b>{int(holiday)}</b> · Weather source: <b>{weather_source}</b></p></div>",
+            unsafe_allow_html=True,
+        )
 
 
 def render_forecast_page():
@@ -392,9 +405,9 @@ def render_pricing_page():
         st.info("Generate an AI decision first from Product Analysis.")
         return
     c1, c2, c3 = st.columns(3)
-    c1.metric("Market reference", f"₹{lp['market']:,.2f}" if isinstance(lp.get('market'), (int, float)) else "Not available")
-    c2.metric("Suggested price", f"₹{lp['suggested']:,.2f}" if isinstance(lp.get('suggested'), (int, float)) else "Not available")
-    c3.metric("Forecast demand", f"{int(lp['pred']):,} units")
+    c1.metric("Market reference", f"₹{lp.get('market'):,.2f}" if isinstance(lp.get('market'), (int, float)) else "Not available")
+    c2.metric("Suggested price", f"₹{lp.get('suggested'):,.2f}" if isinstance(lp.get('suggested'), (int, float)) else "Not available")
+    c3.metric("Forecast demand", f"{int(lp.get('pred', 0)):,} units")
     st.markdown("<div class='decision'><h3>Pricing recommendation</h3><p>The suggested price is bounded around the live market reference and adjusted according to forecast demand. Refresh the market price for a current reference.</p></div>", unsafe_allow_html=True)
 
 
