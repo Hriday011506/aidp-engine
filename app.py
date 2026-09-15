@@ -32,7 +32,7 @@ st.set_page_config(page_title="OptiRetail AI", page_icon="📊", layout="wide", 
 def read_secret(name, fallback=""):
     try:
         value = st.secrets.get(name, fallback)
-        return str(value).strip().strip('"').strip("'") if value else ""
+        return str(value).strip().strip('"').strip("'") if value else fallback
     except Exception:
         return fallback
 
@@ -83,7 +83,7 @@ label,div[data-testid="stWidgetLabel"] p{color:#334155!important;font-weight:600
 
 
 def connect_mongo():
-    """Fresh MongoDB connection. Never caches failed connections."""
+    """Create a fresh MongoDB connection from the current Streamlit Secret."""
     uri = MONGO_URI.strip()
     if not uri:
         return None, "MONGO_URI is missing from Streamlit Secrets."
@@ -93,13 +93,24 @@ def connect_mongo():
         return None, "MONGO_URI must start with mongodb:// or mongodb+srv://."
     if "<password>" in uri or "<db_password>" in uri:
         return None, "MONGO_URI still contains a password placeholder."
+
     try:
         parsed = urlsplit(uri)
         if not parsed.hostname:
             return None, "MONGO_URI does not contain a valid MongoDB hostname."
+
+        # Atlas database users authenticate against the admin database.
         if "authSource=" not in uri:
             uri += ("&" if "?" in uri else "?") + "authSource=admin"
-        client = MongoClient(uri, serverSelectionTimeoutMS=7000, connectTimeoutMS=7000, socketTimeoutMS=7000, retryWrites=True, appname="OptiRetailAI")
+
+        client = MongoClient(
+            uri,
+            serverSelectionTimeoutMS=10000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=10000,
+            retryWrites=True,
+            appname="OptiRetailAI",
+        )
         client.admin.command("ping")
         db = client["optiretail_ai"]
         db.command("ping")
@@ -108,7 +119,7 @@ def connect_mongo():
         text = str(exc).lower()
         name = type(exc).__name__.lower()
         if "authentication failed" in text or "bad auth" in text or "authenticationfailure" in name:
-            return None, "MongoDB authentication failed. Check the Atlas database user and password."
+            return None, "MongoDB authentication failed. Check the Atlas database username/password and authSource=admin."
         if "serverselectiontimeouterror" in name:
             return None, "Atlas could not be reached. Check MongoDB Atlas Network Access/IP allowlist."
         if "dns" in text or "querysrv" in name:
@@ -136,7 +147,12 @@ def send_otp(email, otp):
         response = requests.post(
             "https://api.brevo.com/v3/smtp/email",
             headers={"accept":"application/json","api-key":BREVO_API_KEY,"content-type":"application/json"},
-            json={"sender":{"name":BREVO_SENDER_NAME,"email":BREVO_SENDER_EMAIL},"to":[{"email":email}],"subject":"Your OptiRetail AI verification code","htmlContent":f"<div style='font-family:Arial;padding:24px'><h2>Verify your OptiRetail AI account</h2><p>Your verification code is:</p><div style='font-size:32px;font-weight:700;letter-spacing:8px;color:#047857'>{otp}</div><p>This code expires in 5 minutes.</p></div>"},
+            json={
+                "sender":{"name":BREVO_SENDER_NAME,"email":BREVO_SENDER_EMAIL},
+                "to":[{"email":email}],
+                "subject":"Your OptiRetail AI verification code",
+                "htmlContent":f"<div style='font-family:Arial;padding:24px'><h2>Verify your OptiRetail AI account</h2><p>Your verification code is:</p><div style='font-size:32px;font-weight:700;letter-spacing:8px;color:#047857'>{otp}</div><p>This code expires in 5 minutes.</p></div>",
+            },
             timeout=10,
         )
         if 200 <= response.status_code < 300:
@@ -151,7 +167,7 @@ def save_user(email, password, gst, turnover):
         return False, mongo_status
     email = email.strip().lower()
     try:
-        if users.find_one({"email": email}):
+        if users.find_one({"email":email}):
             return False, "An account with this email already exists."
         users.insert_one({"email":email,"password_hash":password_hash(password),"gst":gst.strip(),"turnover":turnover,"created_at":dt.datetime.now(dt.timezone.utc)})
         return True, "Account created successfully."
@@ -180,7 +196,7 @@ def fetch_price(product):
     try:
         result = GoogleSearch({"engine":"google_shopping_light","q":f"{product} price","gl":"in","hl":"en","num":8,"api_key":SERPAPI_KEY}).get_dict()
         values=[]
-        for item in result.get("shopping_results", []):
+        for item in result.get("shopping_results",[]):
             try: value=float(item.get("extracted_price"))
             except (TypeError,ValueError): continue
             if value>0: values.append((value,item.get("title",""),item.get("source",""),item.get("link","")))
@@ -193,26 +209,26 @@ def fetch_price(product):
 @st.cache_data(ttl=900, show_spinner=False)
 def get_weather(city):
     try:
-        geo=requests.get("https://geocoding-api.open-meteo.com/v1/search",params={"name":city,"count":1},timeout=5);geo.raise_for_status();hits=geo.json().get("results",[])
+        geo=requests.get("https://geocoding-api.open-meteo.com/v1/search",params={"name":city,"count":1},timeout=5)
+        geo.raise_for_status();hits=geo.json().get("results",[])
         if not hits:return 25.0
         lat,lon=hits[0]["latitude"],hits[0]["longitude"]
-        weather=requests.get("https://api.open-meteo.com/v1/forecast",params={"latitude":lat,"longitude":lon,"current_weather":"true"},timeout=5);weather.raise_for_status();return float(weather.json()["current_weather"]["temperature"])
+        weather=requests.get("https://api.open-meteo.com/v1/forecast",params={"latitude":lat,"longitude":lon,"current_weather":"true"},timeout=5)
+        weather.raise_for_status();return float(weather.json()["current_weather"]["temperature"])
     except Exception:return 25.0
 
 
 @st.cache_data
-def holiday_count(year, month):
-    total=0
-    india=holidays.India(years=year) if holidays else set()
+def holiday_count(year,month):
+    total=0;india=holidays.India(years=year) if holidays else set()
     for day in range(1,calendar.monthrange(year,month)[1]+1):
         d=dt.date(year,month,day)
-        if d.weekday()>=5 or d in india: total+=1
+        if d.weekday()>=5 or d in india:total+=1
     return total
 
 
 def trend_score(product):
-    rng=np.random.default_rng(sum(ord(c) for c in product))
-    return int(rng.integers(35,90))
+    rng=np.random.default_rng(sum(ord(c) for c in product));return int(rng.integers(35,90))
 
 
 @st.cache_resource(show_spinner=False)
@@ -222,8 +238,7 @@ def train_model():
     seasonal=np.maximum(0,22-np.abs(data["avg_temp"]-28))
     data["sales"]=180+data["holiday_count"]*42+data["viral_score"]*4.8+seasonal*11+rng.normal(0,25,500)
     model=RandomForestRegressor(n_estimators=250,max_depth=12,min_samples_leaf=2,random_state=42,n_jobs=-1)
-    model.fit(data[["holiday_count","avg_temp","viral_score"]],data["sales"])
-    return model
+    model.fit(data[["holiday_count","avg_temp","viral_score"]],data["sales"]);return model
 
 model=train_model()
 
@@ -236,10 +251,10 @@ def clear_otp():
 
 
 def render_analysis():
-    st.markdown("<div class='section-title'>Product analysis</div>",unsafe_allow_html=True)
+    st.markdown("<div class='card'><div class='eyebrow'>PRODUCT ANALYSIS</div><h3>Market and demand inputs</h3>",unsafe_allow_html=True)
     c1,c2,c3=st.columns([1.5,1,1])
-    with c1: product=st.text_input("Product",value=st.session_state.product,placeholder="e.g. Amul Taaza Milk 1L")
-    with c2: city=st.text_input("City",value=st.session_state.city,placeholder="Jaipur")
+    with c1:product=st.text_input("Product",value=st.session_state.product,placeholder="e.g. Amul Taaza Milk 1L")
+    with c2:city=st.text_input("City",value=st.session_state.city,placeholder="Jaipur")
     with c3:
         months=list(calendar.month_name)[1:]
         month_name=st.selectbox("Forecast month",months,index=months.index(st.session_state.month_name))
@@ -247,53 +262,76 @@ def render_analysis():
     a,b=st.columns(2)
     with a:
         if st.button("Refresh market price",use_container_width=True,key="refresh_price"):
-            data=fetch_price(product)
+            with st.spinner("Checking market price..."):
+                data=fetch_price(product)
             st.session_state.market_data=data
             st.session_state.current_price=data["price"] if data else None
             if data:st.success(f"Market reference: ₹{data['price']:,.2f}")
             else:st.warning("No reliable shopping price found. Check SerpAPI or use a more specific product name.")
     with b:
         if st.button("Generate AI Decision →",use_container_width=True,key="generate_decision"):
-            year=dt.datetime.now().year;month_num=months.index(month_name)+1;temp=get_weather(city);holiday=holiday_count(year,month_num);trend=trend_score(product)
-            inputs=pd.DataFrame({"holiday_count":[holiday],"avg_temp":[temp],"viral_score":[trend]});predicted=float(max(0,model.predict(inputs)[0]));stock=float(np.ceil(predicted*1.10));market=st.session_state.current_price
+            year=dt.datetime.now().year
+            month_num=months.index(month_name)+1
+            temp=get_weather(city)
+            holiday=holiday_count(year,month_num)
+            trend=trend_score(product)
+            inputs=pd.DataFrame({"holiday_count":[holiday],"avg_temp":[temp],"viral_score":[trend]})
+            predicted=float(max(0,model.predict(inputs)[0]))
+            stock=float(np.ceil(predicted*1.10))
+            market=st.session_state.current_price
             suggested=float(market*(1+np.clip((predicted-300)/3000,-0.08,0.08))) if isinstance(market,(int,float)) else None
             st.session_state.last_prediction={"pred":predicted,"stock":stock,"suggested":suggested,"temp":temp,"holiday":holiday,"trend":trend,"market":market,"product":product,"city":city,"month":month_name}
             if predictions is not None and st.session_state.user:
                 try:predictions.insert_one({"email":st.session_state.user.get("email"),"product":product,"city":city,"month":month_name,"demand":predicted,"recommended_stock":stock,"market_price":market,"suggested_price":suggested,"temperature":temp,"holiday_days":holiday,"trend_score":trend,"created_at":dt.datetime.now(dt.timezone.utc)})
                 except Exception as exc:st.warning(f"Decision generated, but MongoDB could not save it: {type(exc).__name__}: {exc}")
-    return product,city,month_name
 
 
 def render_dashboard():
-    lp=st.session_state.get("last_prediction") or {};current=st.session_state.get("current_price");current_text=f"₹{current:,.2f}" if isinstance(current,(int,float)) else "—";suggested=lp.get("suggested")
+    lp=st.session_state.get("last_prediction") or {}
+    current=st.session_state.get("current_price")
+    current_text=f"₹{current:,.2f}" if isinstance(current,(int,float)) else "—"
+    suggested=lp.get("suggested")
     k1,k2,k3,k4=st.columns(4)
     k1.markdown(f"<div class='kpi'><small>Forecasted demand</small><strong>{int(lp.get('pred',0)):,} units</strong><span>AI demand estimate</span></div>",unsafe_allow_html=True)
     k2.markdown(f"<div class='kpi'><small>Recommended stock</small><strong>{int(lp.get('stock',0)):,} units</strong><span>10% planning buffer</span></div>",unsafe_allow_html=True)
     k3.markdown(f"<div class='kpi'><small>Market reference</small><strong>{current_text}</strong><span>SerpAPI shopping signal</span></div>",unsafe_allow_html=True)
     k4.markdown(f"<div class='kpi'><small>Suggested price</small><strong>{f'₹{suggested:,.2f}' if isinstance(suggested,(int,float)) else '—'}</strong><span>Demand-aware bound</span></div>",unsafe_allow_html=True)
     if not lp:
-        st.markdown("<div class='card'><div class='eyebrow'>READY</div><h3>Generate your first AI decision</h3><p class='small'>Choose a product and city above, refresh the market reference, then generate a decision.</p></div>",unsafe_allow_html=True);return
+        st.info("Choose a product, refresh its market price, then generate an AI decision.")
+        return
     left,right=st.columns([1.55,1])
     with left:
-        months=list(calendar.month_name)[1:];x=np.arange(12);base=max(1,lp.get("pred",1));forecast=base*(1+.10*np.sin((x+months.index(lp["month"]))*2*np.pi/12));history=np.maximum(0,base*(.82+.08*np.sin((x+1)*2*np.pi/12)));chart=pd.DataFrame({"Historical demand":np.round(history),"Forecast demand":np.round(forecast)},index=months)
-        st.markdown("<div class='card'><div class='eyebrow'>DEMAND FORECAST</div><h3>12-month demand outlook</h3>",unsafe_allow_html=True);st.line_chart(chart,height=320);st.markdown("</div>",unsafe_allow_html=True)
+        months=list(calendar.month_name)[1:]
+        x=np.arange(12);base=max(1,lp.get("pred",1))
+        forecast=base*(1+.10*np.sin((x+months.index(lp["month"]))*2*np.pi/12))
+        history=np.maximum(0,base*(.82+.08*np.sin((x+1)*2*np.pi/12)))
+        chart=pd.DataFrame({"Historical demand":np.round(history),"Forecast demand":np.round(forecast)},index=months)
+        st.markdown("<div class='card'><div class='eyebrow'>DEMAND FORECAST</div><h3>12-month demand outlook</h3>",unsafe_allow_html=True)
+        st.line_chart(chart,height=320)
+        st.markdown("</div>",unsafe_allow_html=True)
     with right:
         st.markdown("<div class='card'><div class='eyebrow'>AI DECISION</div><h3>Model signals</h3>",unsafe_allow_html=True)
         for name,value in [("Weather",f"{lp.get('temp',25):.1f} °C"),("Holiday days",str(lp.get('holiday',0))),("Trend score",f"{lp.get('trend',0)}/100"),("Market reference",current_text)]:
             st.markdown(f"<div class='signal'><b>{name}</b><span>{value}</span></div>",unsafe_allow_html=True)
         st.markdown("</div>",unsafe_allow_html=True)
-        temp=lp.get("temp",25);action="Higher temperature detected — consider extra safety stock for heat-sensitive products." if temp>=32 else ("Cooler weather detected — keep inventory conservative for weather-sensitive categories." if temp<=18 else "Weather is moderate; holiday and trend signals are driving the current recommendation.")
+        temp=lp.get("temp",25)
+        action="Higher temperature detected — consider extra safety stock for heat-sensitive products." if temp>=32 else ("Cooler weather detected — keep inventory conservative for weather-sensitive categories." if temp<=18 else "Weather is moderate; holiday and trend signals are driving the current recommendation.")
         st.markdown(f"<div class='decision'><h3>Recommended action</h3><p>{action}</p></div>",unsafe_allow_html=True)
 
+
 with st.sidebar:
-    st.markdown("<div style='font-size:1.5rem;font-weight:800'>📊 OptiRetail AI</div><div style='color:#a7f3d0;font-size:.7rem'>Analyze · Predict · Price</div>",unsafe_allow_html=True);st.divider()
+    st.markdown("<div style='font-size:1.5rem;font-weight:800'>📊 OptiRetail AI</div><div style='color:#a7f3d0;font-size:.7rem'>Analyze · Predict · Price</div>",unsafe_allow_html=True)
+    st.divider()
     if st.session_state.user:
         st.caption(st.session_state.user.get("email","Business User"))
         for label,target in [("Dashboard","dashboard"),("Product Analysis","product"),("Demand Forecasting","forecast"),("Dynamic Pricing","pricing"),("Market Insights","market"),("Saved Analyses","saved"),("Settings","settings")]:
-            if st.button(label,use_container_width=True,key=f"nav_{target}"):st.session_state.page=target;st.rerun()
-        if st.button("Sign out",use_container_width=True,key="signout"):st.session_state.user=None;st.session_state.page="welcome";st.session_state.last_prediction=None;st.rerun()
+            if st.button(label,use_container_width=True,key=f"nav_{target}"):
+                st.session_state.page=target;st.rerun()
+        if st.button("Sign out",use_container_width=True,key="signout"):
+            st.session_state.user=None;st.session_state.page="welcome";st.session_state.last_prediction=None;st.rerun()
     else:
-        st.markdown("### Smarter retail decisions");st.caption("Forecast demand. Optimize inventory. Price with confidence.")
+        st.markdown("### Smarter retail decisions")
+        st.caption("Forecast demand. Optimize inventory. Price with confidence.")
 
 if st.session_state.page=="welcome":
     st.markdown("<div class='hero'><div class='eyebrow'>OPTIRETAIL AI</div><h1>Turn market data into <span>smarter decisions.</span></h1><p>Forecast demand, optimize inventory and make practical pricing decisions from one clean workspace.</p></div>",unsafe_allow_html=True)
@@ -303,64 +341,73 @@ if st.session_state.page=="welcome":
     c.markdown("<div class='card'><div class='eyebrow'>03 · PRICE</div><h3>Price with context.</h3><p class='small'>Use a live market reference and demand-aware recommendation.</p></div>",unsafe_allow_html=True)
     x,y=st.columns(2)
     with x:
-        if st.button("Get Started →",use_container_width=True,key="welcome_signup"):st.session_state.page="signup";st.rerun()
+        if st.button("Get Started →",use_container_width=True,key="welcome_signup"): st.session_state.page="signup";st.rerun()
     with y:
-        if st.button("Sign in",use_container_width=True,key="welcome_login"):st.session_state.page="login";st.rerun()
+        if st.button("Sign in",use_container_width=True,key="welcome_login"): st.session_state.page="login";st.rerun()
 
 elif st.session_state.page=="login":
     st.markdown("<div class='auth'><div class='auth-card'><div class='eyebrow'>WELCOME BACK</div><h1 class='auth-title'>Sign in to OptiRetail AI</h1><p class='auth-sub'>Access your retail intelligence workspace.</p>",unsafe_allow_html=True)
     with st.form("login_form"):
-        email=st.text_input("Email address",placeholder="you@company.com");password=st.text_input("Password",type="password",placeholder="Your password");submitted=st.form_submit_button("Sign in",use_container_width=True)
+        email=st.text_input("Email address",placeholder="you@company.com")
+        password=st.text_input("Password",type="password",placeholder="Your password")
+        submitted=st.form_submit_button("Sign in",use_container_width=True)
     if submitted:
         user=authenticate(email,password)
-        if user:st.session_state.user=user;st.session_state.page="dashboard";st.rerun()
-        elif users is None:st.error(f"MongoDB unavailable: {mongo_status}")
-        else:st.error("Invalid credentials.")
+        if user:
+            st.session_state.user=user;st.session_state.page="dashboard";st.rerun()
+        elif users is None: st.error(f"MongoDB unavailable: {mongo_status}")
+        else: st.error("Invalid credentials.")
     a,b=st.columns(2)
     with a:
-        if st.button("Create an account →",use_container_width=True,key="login_signup"):st.session_state.page="signup";st.rerun()
+        if st.button("Create an account →",use_container_width=True,key="login_signup"): st.session_state.page="signup";st.rerun()
     with b:
-        if st.button("← Back to home",use_container_width=True,key="login_back"):st.session_state.page="welcome";st.rerun()
+        if st.button("← Back to home",use_container_width=True,key="login_back"): st.session_state.page="welcome";st.rerun()
     st.markdown("</div></div>",unsafe_allow_html=True)
 
 elif st.session_state.page=="signup":
     st.markdown("<div class='auth'><div class='auth-card'><div class='eyebrow'>BUSINESS ONBOARDING</div><h1 class='auth-title'>Create your OptiRetail AI workspace</h1><p class='auth-sub'>Verify your email before the account is saved.</p>",unsafe_allow_html=True)
     if not st.session_state.otp_value:
         with st.form("signup_form"):
-            email=st.text_input("Email address",placeholder="you@company.com");password=st.text_input("Password",type="password",placeholder="Create a password");gst=st.text_input("GST Number",placeholder="Enter GST number");turnover=st.selectbox("Annual Turnover",["1–5 Lakh","5–10 Lakh","10–15 Lakh","15–50 Lakh","50 Lakh+"]);send=st.form_submit_button("Send verification OTP",use_container_width=True)
+            email=st.text_input("Email address",placeholder="you@company.com")
+            password=st.text_input("Password",type="password",placeholder="Create a password")
+            gst=st.text_input("GST Number",placeholder="Enter GST number")
+            turnover=st.selectbox("Annual Turnover",["1–5 Lakh","5–10 Lakh","10–15 Lakh","15–50 Lakh","50 Lakh+"])
+            send=st.form_submit_button("Send verification OTP",use_container_width=True)
         if send:
             email=email.strip().lower()
-            if not email or "@" not in email or not password or not gst:st.error("Please enter a valid email, password and GST number.")
-            elif users is None:st.error(f"MongoDB unavailable: {mongo_status}")
+            if not email or "@" not in email or not password or not gst: st.error("Please enter a valid email, password and GST number.")
+            elif users is None: st.error(f"MongoDB unavailable: {mongo_status}")
             else:
-                try:exists=users.find_one({"email":email})
-                except Exception as exc:exists=None;st.error(f"MongoDB error: {type(exc).__name__}")
-                if exists:st.error("An account with this email already exists.")
+                try: exists=users.find_one({"email":email})
+                except Exception as exc: exists=None;st.error(f"MongoDB error: {type(exc).__name__}")
+                if exists: st.error("An account with this email already exists.")
                 else:
                     otp=generate_otp();ok,msg=send_otp(email,otp)
                     if ok:
                         st.session_state.otp_email=email;st.session_state.otp_value=otp;st.session_state.otp_created_at=time.time();st.session_state.pending_signup={"email":email,"password":password,"gst":gst,"turnover":turnover};st.rerun()
-                    else:st.error(msg)
+                    else: st.error(msg)
     else:
         st.success(f"Verification code sent to {st.session_state.otp_email}")
         with st.form("otp_form"):
-            code=st.text_input("6-digit OTP",max_chars=6,placeholder="000000");verify=st.form_submit_button("Verify email & create account",use_container_width=True)
+            code=st.text_input("6-digit OTP",max_chars=6,placeholder="000000")
+            verify=st.form_submit_button("Verify email & create account",use_container_width=True)
         if verify:
-            if time.time()-st.session_state.otp_created_at>300:st.error("OTP expired. Please resend a new code.")
-            elif code.strip()!=st.session_state.otp_value:st.error("Incorrect OTP.")
+            if time.time()-st.session_state.otp_created_at>300: st.error("OTP expired. Please resend a new code.")
+            elif code.strip()!=st.session_state.otp_value: st.error("Incorrect OTP.")
             else:
                 ok,msg=save_user(**st.session_state.pending_signup)
-                if ok:clear_otp();st.session_state.page="login";st.success(msg);st.rerun()
-                else:st.error(msg)
+                if ok:
+                    clear_otp();st.session_state.page="login";st.success(msg);st.rerun()
+                else: st.error(msg)
         if st.button("Resend OTP",key="resend_otp"):
             pending=st.session_state.pending_signup;new_code=generate_otp();ok,msg=send_otp(pending["email"],new_code)
-            if ok:st.session_state.otp_value=new_code;st.session_state.otp_created_at=time.time();st.success("New OTP sent.");st.rerun()
-            else:st.error(msg)
+            if ok: st.session_state.otp_value=new_code;st.session_state.otp_created_at=time.time();st.success("New OTP sent.");st.rerun()
+            else: st.error(msg)
     a,b=st.columns(2)
     with a:
-        if st.button("Already have an account? Sign in",key="signup_login"):clear_otp();st.session_state.page="login";st.rerun()
+        if st.button("Already have an account? Sign in",key="signup_login"): clear_otp();st.session_state.page="login";st.rerun()
     with b:
-        if st.button("← Back to home",key="signup_back"):clear_otp();st.session_state.page="welcome";st.rerun()
+        if st.button("← Back to home",key="signup_back"): clear_otp();st.session_state.page="welcome";st.rerun()
     st.markdown("</div></div>",unsafe_allow_html=True)
 
 elif st.session_state.page=="settings" and st.session_state.user:
@@ -370,7 +417,7 @@ elif st.session_state.page=="settings" and st.session_state.user:
     st.write("MongoDB:","Connected" if db is not None else "Unavailable")
     st.write("SerpAPI:","Configured" if SERPAPI_KEY else "Not configured")
     st.write("Brevo email:","Configured" if BREVO_API_KEY and BREVO_SENDER_EMAIL else "Not configured")
-    if db is None:st.warning(mongo_status)
+    if db is None: st.warning(mongo_status)
     st.markdown("</div>",unsafe_allow_html=True)
 
 elif st.session_state.page in {"dashboard","product","forecast","pricing"} and st.session_state.user:
@@ -382,18 +429,19 @@ elif st.session_state.page=="market" and st.session_state.user:
     st.markdown("<div class='hero'><div class='eyebrow'>MARKET INSIGHTS</div><h1>Live market reference.</h1><p>Review current shopping signals for your selected product.</p></div>",unsafe_allow_html=True)
     data=st.session_state.market_data
     if data:
-        st.metric("Market reference",f"₹{data['price']:,.2f}");st.dataframe(pd.DataFrame(data["results"],columns=["Price","Product","Source","Link"]),use_container_width=True,hide_index=True)
-    else:st.info("Run Refresh market price from Product Analysis first.")
+        st.metric("Market reference",f"₹{data['price']:,.2f}")
+        st.dataframe(pd.DataFrame(data["results"],columns=["Price","Product","Source","Link"]),use_container_width=True,hide_index=True)
+    else: st.info("Run Refresh market price from Product Analysis first.")
 
 elif st.session_state.page=="saved" and st.session_state.user:
     st.markdown("<div class='hero'><div class='eyebrow'>SAVED ANALYSES</div><h1>Your saved decisions.</h1><p>Recent AI predictions stored in MongoDB.</p></div>",unsafe_allow_html=True)
-    if predictions is None:st.warning(f"MongoDB unavailable: {mongo_status}")
+    if predictions is None: st.warning(f"MongoDB unavailable: {mongo_status}")
     else:
         try:
             rows=list(predictions.find({"email":st.session_state.user.get("email")},{"_id":0}).sort("created_at",-1).limit(20))
-            if rows:st.dataframe(pd.DataFrame(rows),use_container_width=True,hide_index=True)
-            else:st.info("No saved analyses yet.")
-        except Exception as exc:st.error(f"Could not load saved analyses: {type(exc).__name__}")
+            if rows: st.dataframe(pd.DataFrame(rows),use_container_width=True,hide_index=True)
+            else: st.info("No saved analyses yet.")
+        except Exception as exc: st.error(f"Could not load saved analyses: {type(exc).__name__}")
 
 else:
     st.session_state.page="welcome"
