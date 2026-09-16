@@ -62,13 +62,13 @@ def _price_number(value):
     text=str(value).replace("₹","").replace("Rs.","").replace("Rs","").replace(",","").strip();match=re.search(r"\d+(?:\.\d+)?",text);return float(match.group()) if match else None
 
 def _fallback_market_reference(product):
-    p=str(product).lower();catalog={"coke":(40.0,"Indicative reference · Coca-Cola family"),"coca cola":(40.0,"Indicative reference · Coca-Cola family"),"amul":(60.0,"Indicative reference · Amul family"),"pepsi":(45.0,"Indicative reference · Pepsi family"),"lays":(20.0,"Indicative reference · Lay's family"),"rice":(320.0,"Indicative reference · Rice 5kg"),"cooking oil":(145.0,"Indicative reference · Cooking Oil 1L"),"wheat flour":(260.0,"Indicative reference · Wheat Flour 5kg")}
+    p=str(product).lower();catalog={"coke":(40.0,"Indicative reference · Coca-Cola family"),"coca cola":(40.0,"Indicative reference · Coca-Cola family"),"amul taaza milk 1l":(56.0,"Indicative reference · Amul Taaza Milk 1L"),"amul taaza milk":(56.0,"Indicative reference · Amul Taaza Milk"),"amul":(60.0,"Indicative reference · Amul family"),"pepsi":(45.0,"Indicative reference · Pepsi family"),"lays":(20.0,"Indicative reference · Lay's family"),"rice":(320.0,"Indicative reference · Rice 5kg"),"cooking oil":(145.0,"Indicative reference · Cooking Oil 1L"),"wheat flour":(260.0,"Indicative reference · Wheat Flour 5kg")}
     for key,value in catalog.items():
         if key in p:return value
     return None,None
 
 def live_market_price(product,city):
-    """Use the web search endpoint directly; do not restrict results to retailers."""
+    """Search the open web through SerpApi without restricting results to a retailer or shopping engine."""
     key=str(st.secrets.get("SERPAPI_KEY","")).strip()
     if not key:return None,"SERPAPI_KEY is missing from Streamlit Secrets."
     queries=[f"{product} price in {city} India",f"{product} MRP price India",f"{product} current price India"]
@@ -80,23 +80,28 @@ def live_market_price(product,city):
             if data.get("error"):
                 last_error=str(data["error"]);continue
             candidates=[]
-            for item in list(data.get("organic_results") or [])[:30]+list(data.get("shopping_results") or [])[:30]:
+            pools=list(data.get("shopping_results") or [])+list(data.get("inline_shopping_results") or [])+list(data.get("organic_results") or [])
+            for item in pools[:80]:
                 price=_price_number(item.get("extracted_price",item.get("price")))
+                if price is None:
+                    text=f"{item.get('title','')} {item.get('snippet','')} {item.get('rich_snippet','')}"
+                    matches=re.findall(r"(?:₹|Rs\.?|INR)\s*([0-9]+(?:\.[0-9]+)?)",text,flags=re.I)
+                    if matches:price=_price_number(matches[0])
                 if price is None or not 0<price<100000:continue
-                candidates.append((price,str(item.get("source") or item.get("merchant") or item.get("displayed_link") or "SerpApi result")))
+                candidates.append((price,str(item.get("source") or item.get("merchant") or item.get("displayed_link") or "Web result")))
             if candidates:
                 values=[x[0] for x in candidates[:12]]
                 market=round(float(np.median(values)),2)
                 sources=[]
                 for _,source in candidates[:12]:
                     if source and source not in sources:sources.append(source)
-                return market,f"Live web market reference · {', '.join(sources[:6]) or 'SerpApi search results'}"
-            last_error="SerpApi returned no priced results for this query."
-        except requests.exceptions.Timeout:last_error="SerpApi request timed out."
+                return market,f"Live web market reference · {', '.join(sources[:6]) or 'web search results'}"
+            last_error="Search returned no usable priced results."
+        except requests.exceptions.Timeout:last_error="Web market search timed out."
         except requests.exceptions.RequestException as exc:last_error=str(exc)
         except (ValueError,TypeError) as exc:last_error=str(exc)
-    cached=st.session_state.get("price")
-    if cached is not None:return float(cached),"Cached market reference · live web lookup failed"
+    # Never reuse the previous product's price. A failed lookup must not leak a stale value
+    # from another product or city into the current analysis.
     fallback,fallback_source=_fallback_market_reference(product)
     if fallback is not None:return fallback,fallback_source+" · live web lookup unavailable"
     return None,f"Live market lookup failed: {last_error or 'no priced results returned'}"
@@ -171,7 +176,7 @@ def inputs():
         if st.button("Generate AI Decision →",use_container_width=True,key="generate_button"):
             if st.session_state.price is None:st.error("Refresh the market price first. A market reference is required for an AI decision.")
             elif generate():st.success("AI decision generated successfully.")
-    if st.session_state.price is not None:st.markdown(f"<div style='background:#dcfce7;border-radius:12px;padding:14px 18px;color:#047857;font-weight:800'>Market reference: ₹{st.session_state.price:,.2f} · {html.escape(str(st.session_state.price_source or 'SerpApi market data'))}</div>",unsafe_allow_html=True)
+    if st.session_state.price is not None:st.markdown(f"<div style='background:#dcfce7;border-radius:12px;padding:14px 18px;color:#047857;font-weight:800'>Market reference: ₹{st.session_state.price:,.2f} · {html.escape(str(st.session_state.price_source or 'Live web market data'))}</div>",unsafe_allow_html=True)
     st.markdown("</div>",unsafe_allow_html=True)
 def simulator():
     p=normalize_prediction(st.session_state.prediction)
@@ -184,7 +189,7 @@ def simulator():
     with x:st.markdown(f"<div class='kpi'><small>SIMULATED DEMAND</small><strong>{int(simulated):,} units</strong><span>Base forecast {int(p['pred']):,}</span></div>",unsafe_allow_html=True)
     with y:st.markdown(f"<div class='kpi'><small>RECOMMENDED STOCK</small><strong>{stock:,} units</strong><span>Includes 10% buffer</span></div>",unsafe_allow_html=True)
 def dashboard():
-    p=normalize_prediction(st.session_state.prediction);cols=st.columns(4);values=[("FORECAST DEMAND",f"{int(p['pred']):,} units" if p else "—","Current month"),("RECOMMENDED STOCK",f"{int(p['stock']):,} units" if p else "—","10% planning buffer"),("MARKET REFERENCE",f"₹{p['market']:,.2f}" if p else "—","SerpApi market data"),("CONFIDENCE",f"{p['confidence']}%" if p else "—","Model confidence")]
+    p=normalize_prediction(st.session_state.prediction);cols=st.columns(4);values=[("FORECAST DEMAND",f"{int(p['pred']):,} units" if p else "—","Current month"),("RECOMMENDED STOCK",f"{int(p['stock']):,} units" if p else "—","10% planning buffer"),("MARKET REFERENCE",f"₹{p['market']:,.2f}" if p else "—","Live web market data"),("CONFIDENCE",f"{p['confidence']}%" if p else "—","Model confidence")]
     for col,(label,value,note) in zip(cols,values):col.markdown(f"<div class='kpi'><small>{label}</small><strong>{value}</strong><span>{note}</span></div>",unsafe_allow_html=True)
     a,b=st.columns([1.4,1])
     with a:
@@ -285,7 +290,7 @@ elif st.session_state.user:
     elif st.session_state.page=="pricing":pricing_page()
     elif st.session_state.page=="simulator":simulator()
     elif st.session_state.page=="market":
-        header("MARKET INSIGHTS","SerpApi <span>market intelligence.</span>","SerpApi provides the current web market reference used by the decision workflow.");price,message=live_market_price(st.session_state.product,st.session_state.city)
+        header("MARKET INSIGHTS","Live web <span>market intelligence.</span>","Search the open web for a current market reference without restricting the lookup to a specific retailer.");price,message=live_market_price(st.session_state.product,st.session_state.city)
         if price is None:st.error(message)
         else:st.session_state.price=price;st.session_state.price_source=message;st.metric("Current market reference",f"₹{price:,.2f}");st.caption(message)
     elif st.session_state.page=="compare":compare_page()
