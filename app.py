@@ -17,10 +17,8 @@ except ImportError:
 
 st.set_page_config(page_title="OptiRetail AI", page_icon="🛒", layout="wide", initial_sidebar_state="expanded")
 MONTHS = list(calendar.month_name)[1:]
-
 DEFAULTS = {"user": None, "users": {}, "page": "welcome", "product": "Wheat Flour", "city": "Jaipur", "month": dt.datetime.now().strftime("%B"), "prediction": None, "forecast": None, "price": None, "price_source": None, "saved": []}
-for k, v in DEFAULTS.items():
-    st.session_state.setdefault(k, v)
+for k, v in DEFAULTS.items(): st.session_state.setdefault(k, v)
 
 st.markdown("""
 <style>
@@ -37,13 +35,13 @@ input,textarea{color:#0f172a!important;background:#fff!important}label,div[data-
 """, unsafe_allow_html=True)
 
 def ph(value): return hashlib.sha256(str(value).encode()).hexdigest()
-def signup(email, password, gst, turnover):
+def signup(email,password,gst,turnover):
     email=email.strip().lower()
     if email in st.session_state.users:return False,"An account with this email already exists in this session."
     st.session_state.users[email]={"email":email,"password":ph(password),"gst":gst.strip(),"turnover":turnover};return True,"Account created successfully."
 def authenticate(email,password):
     user=st.session_state.users.get(email.strip().lower());return user if user and user.get("password")==ph(password) else None
-def trend(product): return int(np.random.default_rng(sum(ord(x) for x in product.lower())).integers(45,91))
+def trend(product):return int(np.random.default_rng(sum(ord(x) for x in product.lower())).integers(45,91))
 def weather_fallback(lat=20):
     base=25-min(abs(lat),45)*.06;amp=min(14,8+abs(lat)*.1);phase=5 if lat>=0 else 11
     return {calendar.month_name[m]:round(base+amp*np.cos((m-phase)*2*np.pi/12),1) for m in range(1,13)}
@@ -62,6 +60,7 @@ def monthly_weather(city):
 def _price_number(value):
     if isinstance(value,(int,float,np.number)):return float(value)
     text=str(value).replace("₹","").replace("Rs.","").replace("Rs","").replace(",","").strip();match=re.search(r"\d+(?:\.\d+)?",text);return float(match.group()) if match else None
+
 def _fallback_market_reference(product):
     p=str(product).lower();catalog={"coke":(40.0,"Indicative reference · Coca-Cola family"),"coca cola":(40.0,"Indicative reference · Coca-Cola family"),"amul":(60.0,"Indicative reference · Amul family"),"pepsi":(45.0,"Indicative reference · Pepsi family"),"lays":(20.0,"Indicative reference · Lay's family"),"rice":(320.0,"Indicative reference · Rice 5kg"),"cooking oil":(145.0,"Indicative reference · Cooking Oil 1L"),"wheat flour":(260.0,"Indicative reference · Wheat Flour 5kg")}
     for key,value in catalog.items():
@@ -69,36 +68,38 @@ def _fallback_market_reference(product):
     return None,None
 
 def live_market_price(product,city):
-    """Use SerpApi directly and use any valid priced result without retailer/product filtering."""
+    """Use the web search endpoint directly; do not restrict results to retailers."""
     key=str(st.secrets.get("SERPAPI_KEY","")).strip()
     if not key:return None,"SERPAPI_KEY is missing from Streamlit Secrets."
-    queries=[f"{product} price in {city} India",f"{product} price India"]
+    queries=[f"{product} price in {city} India",f"{product} MRP price India",f"{product} current price India"]
     last_error=None
     for query in queries:
-        params={"engine":"google_shopping","q":query,"location":f"{city}, India","hl":"en","gl":"in","device":"desktop","api_key":key}
+        params={"engine":"google","q":query,"location":f"{city}, India","hl":"en","gl":"in","device":"desktop","api_key":key}
         try:
-            response=requests.get("https://serpapi.com/search.json",params=params,timeout=(3,8));response.raise_for_status();data=response.json()
+            response=requests.get("https://serpapi.com/search.json",params=params,timeout=(3,7));response.raise_for_status();data=response.json()
             if data.get("error"):
                 last_error=str(data["error"]);continue
-            results=list(data.get("shopping_results") or [])+list(data.get("inline_shopping_results") or [])+list(data.get("products_results") or [])
-            priced=[]
-            for item in results[:80]:
+            candidates=[]
+            for item in list(data.get("organic_results") or [])[:30]+list(data.get("shopping_results") or [])[:30]:
                 price=_price_number(item.get("extracted_price",item.get("price")))
                 if price is None or not 0<price<100000:continue
-                priced.append({"price":price,"source":str(item.get("source") or item.get("merchant") or "SerpApi result")})
-            if priced:
-                selected=priced[:10];market=round(float(np.median([x["price"] for x in selected])),2);sources=[]
-                for item in selected:
-                    if item["source"] and item["source"] not in sources:sources.append(item["source"])
-                return market,f"SerpApi market results · {', '.join(sources[:6])}"
+                candidates.append((price,str(item.get("source") or item.get("merchant") or item.get("displayed_link") or "SerpApi result")))
+            if candidates:
+                values=[x[0] for x in candidates[:12]]
+                market=round(float(np.median(values)),2)
+                sources=[]
+                for _,source in candidates[:12]:
+                    if source and source not in sources:sources.append(source)
+                return market,f"Live web market reference · {', '.join(sources[:6]) or 'SerpApi search results'}"
+            last_error="SerpApi returned no priced results for this query."
         except requests.exceptions.Timeout:last_error="SerpApi request timed out."
         except requests.exceptions.RequestException as exc:last_error=str(exc)
         except (ValueError,TypeError) as exc:last_error=str(exc)
     cached=st.session_state.get("price")
-    if cached is not None:return float(cached),"Cached market reference · SerpApi refresh failed"
+    if cached is not None:return float(cached),"Cached market reference · live web lookup failed"
     fallback,fallback_source=_fallback_market_reference(product)
-    if fallback is not None:return fallback,fallback_source+" · live SerpApi unavailable"
-    return None,f"SerpApi market lookup failed: {last_error or 'no priced results returned'}"
+    if fallback is not None:return fallback,fallback_source+" · live web lookup unavailable"
+    return None,f"Live market lookup failed: {last_error or 'no priced results returned'}"
 
 def holiday_days(year,month):
     h=holidays.India(years=year) if holidays else set();return sum(1 for d in range(1,calendar.monthrange(year,month)[1]+1) if dt.date(year,month,d).weekday()>=5 or dt.date(year,month,d) in h)
@@ -111,11 +112,26 @@ def make_forecast(product,city):
     for number,month in enumerate(MONTHS,1):
         temp=float(temps.get(month,25));holiday=holiday_days(year,number);features=pd.DataFrame({"holiday":[holiday],"temp":[temp],"trend":[product_trend]});demand=float(max(0,MODEL.predict(features)[0]));rows.append({"Month":month,"Temperature (°C)":round(temp,1),"Holiday days":holiday,"Trend score":product_trend,"Forecast demand":round(demand)})
     return pd.DataFrame(rows),resolved,source
+
+def _mrp_for_product(product,market):
+    p=str(product).lower()
+    known={"coke":40.0,"coca cola":40.0,"amul taaza milk 1l":56.0,"amul taaza milk":56.0,"amul":60.0,"pepsi":45.0,"lays":20.0}
+    for key,mrp in known.items():
+        if key in p:return mrp
+    return None
+
 def generate():
     market=st.session_state.price
     if market is None:return False
-    table,city,weather_source=make_forecast(st.session_state.product,st.session_state.city);row=table.loc[table.Month==st.session_state.month].iloc[0];pred=float(row["Forecast demand"]);suggested=round(float(market*(1+np.clip((pred-700)/7000,-0.06,0.06))),2)
+    table,city,weather_source=make_forecast(st.session_state.product,st.session_state.city);row=table.loc[table.Month==st.session_state.month].iloc[0];pred=float(row["Forecast demand"])
+    base=market*(1+np.clip((pred-700)/7000,-0.06,0.06))
+    mrp=_mrp_for_product(st.session_state.product,market)
+    if mrp is not None:
+        suggested=round(min(base,mrp),2)
+    else:
+        suggested=round(base,2)
     p={"product":st.session_state.product,"city":city,"month":st.session_state.month,"pred":pred,"stock":float(np.ceil(pred*1.1)),"temp":float(row["Temperature (°C)"]),"holiday":int(row["Holiday days"]),"trend":int(row["Trend score"]),"market":float(market),"suggested":suggested,"source":weather_source,"confidence":int(np.clip(70+abs(int(row["Trend score"])-60)*.25,68,94))};st.session_state.forecast=table;st.session_state.prediction=p;st.session_state.saved.insert(0,p.copy());st.session_state.saved=st.session_state.saved[:20];return True
+
 def normalize_prediction(p):
     if not isinstance(p,dict):return None
     required={"product","city","month","pred","stock","temp","holiday","trend","market","suggested","source","confidence"}
@@ -236,7 +252,7 @@ with st.sidebar:
             if st.button(label,use_container_width=True,key="nav_"+target):st.session_state.page=target;st.rerun()
         if st.button("Sign out",use_container_width=True,key="signout"):st.session_state.user=None;st.session_state.page="welcome";st.rerun()
 if st.session_state.page=="welcome":
-    header("OPTIRETAIL AI","Turn market data into <span>smarter decisions.</span>","Forecast demand, use SerpApi market intelligence, simulate scenarios, detect risks and explain AI recommendations.");a,b,c,d=st.columns(4)
+    header("OPTIRETAIL AI","Turn market data into <span>smarter decisions.</span>","Forecast demand, use live web market intelligence, simulate scenarios, detect risks and explain AI recommendations.");a,b,c,d=st.columns(4)
     for col,title,desc in zip([a,b,c,d],["Predict","Decide","Simulate","Explain"],["12-month demand forecast","AI Action Center","What-if scenarios","Confidence and drivers"]):col.markdown(f"<div class='card'><div class='eyebrow'>AI</div><h3>{title}</h3><p class='small'>{desc}</p></div>",unsafe_allow_html=True)
     x,y=st.columns(2)
     with x:
@@ -269,7 +285,7 @@ elif st.session_state.user:
     elif st.session_state.page=="pricing":pricing_page()
     elif st.session_state.page=="simulator":simulator()
     elif st.session_state.page=="market":
-        header("MARKET INSIGHTS","SerpApi <span>market intelligence.</span>","SerpApi provides the current shopping-market reference used by the decision workflow.");price,message=live_market_price(st.session_state.product,st.session_state.city)
+        header("MARKET INSIGHTS","SerpApi <span>market intelligence.</span>","SerpApi provides the current web market reference used by the decision workflow.");price,message=live_market_price(st.session_state.product,st.session_state.city)
         if price is None:st.error(message)
         else:st.session_state.price=price;st.session_state.price_source=message;st.metric("Current market reference",f"₹{price:,.2f}");st.caption(message)
     elif st.session_state.page=="compare":compare_page()
