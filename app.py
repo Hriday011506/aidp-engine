@@ -22,25 +22,15 @@ for k, v in DEFAULTS.items(): st.session_state.setdefault(k, v)
 
 st.markdown("""
 <style>
-:root{--green:#079568;--green2:#047a55;--dark:#063b2e;--ink:#0f172a;--muted:#64748b;--line:#d9e9e3}
-.stApp{background:#ffffff;color:var(--ink)}
+:root{--green:#079568;--dark:#063b2e;--ink:#0f172a;--muted:#64748b;--line:#d9e9e3}
+.stApp{background:linear-gradient(180deg,#f7fbf9,#fff 48%,#f2faf7)}
 .block-container{max-width:1500px;padding:1rem 2rem 4rem}
-[data-testid="stSidebar"]{background:linear-gradient(180deg,#032d23,#063b2e)!important;border-right:1px solid #075943}
+[data-testid="stSidebar"]{background:linear-gradient(180deg,#032d23,#063b2e)}
 [data-testid="stSidebar"] *{color:#ecfdf5!important}
 .brand{display:flex;align-items:center;gap:12px;padding:8px 0 22px;border-bottom:1px solid #ffffff33;margin-bottom:20px}.mark{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#10b981,#047857);display:flex;align-items:center;justify-content:center;font-size:25px}.brand-title{font-size:1.35rem;font-weight:900;color:#fff!important}.brand-title span{color:#34d399!important}.brand-sub{font-size:.62rem;color:#a7f3d0!important;letter-spacing:1px}
-.hero{padding:30px 38px;border-radius:28px;background:linear-gradient(135deg,#fff,#effbf6);border:1px solid var(--line);box-shadow:0 18px 48px #10b98114;margin-bottom:20px}.hero h1{font-size:2.6rem;margin:0;color:#047857!important;font-weight:900}.hero h1 span{color:#047857!important}.hero p{color:#64748b!important}
-.eyebrow{color:#047857!important;text-transform:uppercase;font-size:.65rem;font-weight:900;letter-spacing:2px;margin-bottom:8px}
-.card{background:#fff;border:1px solid #d9e9e3;border-radius:20px;padding:20px;box-shadow:0 10px 30px #0f172a0d;margin-bottom:16px}.card h3{margin:.15rem 0 .5rem;color:#047857!important}.small{color:#475569!important;font-size:.84rem;line-height:1.5}
-.kpi{background:#fff;border:1px solid #d9e9e3;border-radius:18px;padding:18px;min-height:112px}.kpi small{color:#64748b!important;text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:.62rem}.kpi strong{display:block;color:#047857!important;font-size:1.55rem;margin-top:7px}.kpi span{font-size:.74rem;color:#64748b!important}
-.action{border:1px solid #d9e9e3;border-radius:14px;padding:13px;margin:8px 0;background:#fff}.action p{margin:3px 0 0;color:#64748b!important;font-size:.82rem}.critical{border-left:5px solid #ef4444}.warning{border-left:5px solid #f59e0b}.info{border-left:5px solid #3b82f6}.decision{border-radius:18px;padding:18px;background:#ecfdf5;border:1px solid #bbf7d0}.decision h3{color:#065f46!important;margin:0 0 5px}.score{font-size:3rem;font-weight:900;color:#047857!important}.auth{max-width:800px;margin:25px auto}.auth-card{background:#fff;border:1px solid var(--line);border-radius:28px;padding:34px;box-shadow:0 20px 55px #0f172a12}.auth-title{font-size:2.2rem;font-weight:900;color:#047857!important;margin:0}.auth-sub{color:#64748b!important}
-/* Restore readable green/white application controls and headings. */
-input,textarea{color:#0f172a!important;background:#fff!important;border-color:#cbd5e1!important}label,div[data-testid="stWidgetLabel"] p{color:#334155!important;font-weight:600!important}
-.stButton>button,.stFormSubmitButton>button{border:0!important;border-radius:12px!important;min-height:44px!important;font-weight:800!important;background:linear-gradient(135deg,#079568,#047a55)!important;color:#fff!important}
-.stButton>button:hover,.stFormSubmitButton>button:hover{background:linear-gradient(135deg,#0aa979,#05835e)!important;color:#fff!important}
-[data-testid="stMetricLabel"], [data-testid="stMetricValue"], [data-testid="stMetricDelta"]{color:#047857!important}
-[data-testid="stMarkdownContainer"] h1,[data-testid="stMarkdownContainer"] h2,[data-testid="stMarkdownContainer"] h3,[data-testid="stMarkdownContainer"] h4{color:#047857!important}
-[data-testid="stMarkdownContainer"] p,[data-testid="stMarkdownContainer"] li{color:#334155}
-.stSelectbox label,.stTextInput label,.stNumberInput label{color:#334155!important}
+.hero{padding:30px 38px;border-radius:28px;background:linear-gradient(135deg,#fff,#effbf6);border:1px solid var(--line);box-shadow:0 18px 48px #10b98114;margin-bottom:20px}.hero h1{font-size:2.6rem;margin:0;color:#047857!important;font-weight:900}.hero h1 span{color:#047857!important}.hero p{color:#64748b!important}.eyebrow{color:#047857!important;text-transform:uppercase;font-size:.65rem;font-weight:900;letter-spacing:2px;margin-bottom:8px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:20px;box-shadow:0 10px 30px #0f172a0d;margin-bottom:16px}.card h3{margin:.15rem 0 .5rem;color:#047857!important}.small{color:#64748b!important;font-size:.84rem;line-height:1.5}.kpi{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:18px;min-height:112px}.kpi small{color:#64748b;text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:.62rem}.kpi strong{display:block;color:#0f172a;font-size:1.55rem;margin-top:7px}.kpi span{font-size:.74rem;color:#64748b}.action{border:1px solid #e5e7eb;border-radius:14px;padding:13px;margin:8px 0}.action p{margin:3px 0 0;color:#64748b;font-size:.82rem}.critical{border-left:5px solid #ef4444}.warning{border-left:5px solid #f59e0b}.info{border-left:5px solid #3b82f6}.decision{border-radius:18px;padding:18px;background:#ecfdf5;border:1px solid #bbf7d0}.decision h3{color:#065f46!important;margin:0 0 5px}.score{font-size:3rem;font-weight:900;color:#047857}.auth{max-width:800px;margin:25px auto}.auth-card{background:#fff;border:1px solid var(--line);border-radius:28px;padding:34px;box-shadow:0 20px 55px #0f172a12}.auth-title{font-size:2.2rem;font-weight:900;color:#047857!important;margin:0}.auth-sub{color:#64748b!important}
+input,textarea{color:#0f172a!important;background:#fff!important}label,div[data-testid="stWidgetLabel"] p{color:#334155!important;font-weight:600!important}.stButton>button,.stFormSubmitButton>button{border:0!important;border-radius:12px!important;min-height:44px!important;font-weight:800!important;background:linear-gradient(135deg,#079568,#047a55)!important;color:#fff!important}
 </style>
 """, unsafe_allow_html=True)
 
@@ -72,12 +62,13 @@ def _price_number(value):
     text=str(value).replace("₹","").replace("Rs.","").replace("Rs","").replace(",","").strip();match=re.search(r"\d+(?:\.\d+)?",text);return float(match.group()) if match else None
 
 def _fallback_market_reference(product):
-    p=str(product).lower();catalog={"coke":(40.0,"Indicative reference · Coca-Cola family"),"coca cola":(40.0,"Indicative reference · Coca-Cola family"),"amul":(60.0,"Indicative reference · Amul family"),"pepsi":(45.0,"Indicative reference · Pepsi family"),"lays":(20.0,"Indicative reference · Lay's family"),"rice":(320.0,"Indicative reference · Rice 5kg"),"cooking oil":(145.0,"Indicative reference · Cooking Oil 1L"),"wheat flour":(260.0,"Indicative reference · Wheat Flour 5kg")}
+    p=str(product).lower();catalog={"coke":(40.0,"Indicative reference · Coca-Cola family"),"coca cola":(40.0,"Indicative reference · Coca-Cola family"),"amul taaza milk 1l":(56.0,"Indicative reference · Amul Taaza Milk 1L"),"amul taaza milk":(56.0,"Indicative reference · Amul Taaza Milk"),"amul":(60.0,"Indicative reference · Amul family"),"pepsi":(45.0,"Indicative reference · Pepsi family"),"lays":(20.0,"Indicative reference · Lay's family"),"rice":(320.0,"Indicative reference · Rice 5kg"),"cooking oil":(145.0,"Indicative reference · Cooking Oil 1L"),"wheat flour":(260.0,"Indicative reference · Wheat Flour 5kg")}
     for key,value in catalog.items():
         if key in p:return value
     return None,None
 
 def live_market_price(product,city):
+    """Use the web search endpoint directly; do not restrict results to retailers."""
     key=str(st.secrets.get("SERPAPI_KEY","")).strip()
     if not key:return None,"SERPAPI_KEY is missing from Streamlit Secrets."
     queries=[f"{product} price in {city} India",f"{product} MRP price India",f"{product} current price India"]
@@ -86,19 +77,26 @@ def live_market_price(product,city):
         params={"engine":"google","q":query,"location":f"{city}, India","hl":"en","gl":"in","device":"desktop","api_key":key}
         try:
             response=requests.get("https://serpapi.com/search.json",params=params,timeout=(3,7));response.raise_for_status();data=response.json()
-            if data.get("error"):last_error=str(data["error"]);continue
+            if data.get("error"):
+                last_error=str(data["error"]);continue
             candidates=[]
-            for item in list(data.get("organic_results") or [])[:30]+list(data.get("shopping_results") or [])[:30]:
+            for item in list(data.get("shopping_results") or [])[:30]+list(data.get("organic_results") or [])[:30]:
                 price=_price_number(item.get("extracted_price",item.get("price")))
+                if price is None:
+                    text=f"{item.get('title','')} {item.get('snippet','')} {item.get('rich_snippet','')}"
+                    m=re.findall(r"(?:₹|Rs\.?|INR)\s*([0-9]+(?:\.[0-9]+)?)",text,flags=re.I)
+                    if m:price=_price_number(m[0])
                 if price is None or not 0<price<100000:continue
-                candidates.append((price,str(item.get("source") or item.get("merchant") or item.get("displayed_link") or "SerpApi result")))
+                title=str(item.get("title") or "").lower();qwords=[w for w in re.findall(r"[a-z0-9]+",str(product).lower()) if len(w)>2]
+                relevance=sum(1 for w in qwords if w in title)/max(len(qwords),1)
+                candidates.append((relevance,price,str(item.get("source") or item.get("merchant") or item.get("displayed_link") or "Web result")))
             if candidates:
-                values=[x[0] for x in candidates[:12]];market=round(float(np.median(values)),2);sources=[]
-                for _,source in candidates[:12]:
+                candidates.sort(key=lambda x:(x[0],x[1]),reverse=True);top=[x for x in candidates if x[0]>=max(0.0,candidates[0][0]-0.15)][:10];market=round(float(np.median([x[1] for x in top])),2);sources=[]
+                for _,_,source in top:
                     if source and source not in sources:sources.append(source)
-                return market,f"Live web market reference · {', '.join(sources[:6]) or 'SerpApi search results'}"
-            last_error="SerpApi returned no priced results for this query."
-        except requests.exceptions.Timeout:last_error="SerpApi request timed out."
+                return market,f"Live web market reference · {', '.join(sources[:6]) or 'web search results'}"
+            last_error="Search returned no usable priced results."
+        except requests.exceptions.Timeout:last_error="Web market search timed out."
         except requests.exceptions.RequestException as exc:last_error=str(exc)
         except (ValueError,TypeError) as exc:last_error=str(exc)
     fallback,fallback_source=_fallback_market_reference(product)
@@ -106,16 +104,27 @@ def live_market_price(product,city):
     return None,f"Live market lookup failed: {last_error or 'no priced results returned'}"
 
 def holiday_days(year,month):
-    h=holidays.India(years=year) if holidays else set();return sum(1 for d in range(1,calendar.monthrange(year,month)[1]+1) if dt.date(year,month,d).weekday()>=5 or dt.date(year,month,d) in h)
+    h=holidays.India(years=year) if holidays else set();return sum(1 for d in range(1,calendar.monthrange(year,month)+1) if dt.date(year,month,d).weekday()>=5 or dt.date(year,month,d) in h)
 @st.cache_resource(show_spinner=False)
 def get_model():
-    rng=np.random.default_rng(42);frame=pd.DataFrame({"holiday":rng.integers(0,14,800),"temp":rng.uniform(8,42,800),"trend":rng.integers(0,100,800)});season=np.maximum(0,24-np.abs(frame.temp-28));frame["sales"]=170+frame.holiday*38+frame.trend*4.7+season*12+rng.normal(0,24,800);model=RandomForestRegressor(n_estimators=220,max_depth=12,random_state=42,n_jobs=-1);model.fit(frame[["holiday","temp","trend"]],frame.sales);return model
+    rng=np.random.default_rng(42);frame=pd.DataFrame({"holiday":rng.integers(0,14,800),"temp":rng.uniform(8,42,800),"trend":rng.integers(0,100,800),"social":rng.integers(20,91,800)});season=np.maximum(0,24-np.abs(frame.temp-28));frame["sales"]=170+frame.holiday*38+frame.trend*4.7+season*12+frame.social*2.1+rng.normal(0,24,800);model=RandomForestRegressor(n_estimators=220,max_depth=12,random_state=42,n_jobs=-1);model.fit(frame[["holiday","temp","trend","social"]],frame.sales);return model
 MODEL=get_model()
+def social_viral_score(product):
+    """Return a transparent 0-100 social-demand proxy using live Google trend language when available."""
+    p=str(product).strip();key=str(st.secrets.get("SERPAPI_KEY","")).strip()
+    if key:
+        try:
+            params={"engine":"google","q":f"{p} trending social media India","hl":"en","gl":"in","num":10,"api_key":key};data=requests.get("https://serpapi.com/search.json",params=params,timeout=(3,7)).json();organic=data.get("organic_results") or []
+            if organic:
+                text=" ".join(str(x.get("title", ""))+" "+str(x.get("snippet", "")) for x in organic[:10]).lower();buzz=sum(text.count(w) for w in ["viral","trending","trend","reels","instagram","tiktok","youtube","buzz"]);return int(np.clip(48+buzz*5,20,95)),"Search-trend social proxy"
+        except Exception:pass
+    seed=sum(ord(c) for c in p.lower());return int(np.random.default_rng(seed).integers(42,78)),"Social trend proxy (demo)"
+
 def make_forecast(product,city):
-    resolved,temps,source=monthly_weather(city);product_trend=trend(product);rows=[];year=dt.datetime.now().year
+    resolved,temps,source=monthly_weather(city);product_trend=trend(product);social_score,social_source=social_viral_score(product);rows=[];year=dt.datetime.now().year
     for number,month in enumerate(MONTHS,1):
-        temp=float(temps.get(month,25));holiday=holiday_days(year,number);features=pd.DataFrame({"holiday":[holiday],"temp":[temp],"trend":[product_trend]});demand=float(max(0,MODEL.predict(features)[0]));rows.append({"Month":month,"Temperature (°C)":round(temp,1),"Holiday days":holiday,"Trend score":product_trend,"Forecast demand":round(demand)})
-    return pd.DataFrame(rows),resolved,source
+        temp=float(temps.get(month,25));holiday=holiday_days(year,number);features=pd.DataFrame({"holiday":[holiday],"temp":[temp],"trend":[product_trend],"social":[social_score]});demand=float(max(0,MODEL.predict(features)[0]));rows.append({"Month":month,"Temperature (°C)":round(temp,1),"Holiday days":holiday,"Trend score":product_trend,"Social Viral Score":social_score,"Forecast demand":round(demand)})
+    return pd.DataFrame(rows),resolved,source,social_source
 
 def _mrp_for_product(product,market):
     p=str(product).lower();known={"coke":40.0,"coca cola":40.0,"amul taaza milk 1l":56.0,"amul taaza milk":56.0,"amul":60.0,"pepsi":45.0,"lays":20.0}
@@ -126,12 +135,9 @@ def _mrp_for_product(product,market):
 def generate():
     market=st.session_state.price
     if market is None:return False
-    table,city,weather_source=make_forecast(st.session_state.product,st.session_state.city);row=table.loc[table.Month==st.session_state.month].iloc[0]
-    pred=float(row["Forecast demand"]);temp=float(row["Temperature (°C)"]);holiday=int(row["Holiday days"]);trend_score=int(row["Trend score"])
-    demand_factor=float(np.clip((pred-700)/5000,-0.045,0.045));weather_factor=float(np.clip((temp-27)/250,-0.025,0.025));holiday_factor=float(np.clip(holiday/600,-0.012,0.012));trend_factor=float(np.clip((trend_score-60)/3000,-0.015,0.015));adjustment=float(np.clip(demand_factor+weather_factor+holiday_factor+trend_factor,-0.06,0.06));base=market*(1+adjustment)
-    mrp=_mrp_for_product(st.session_state.product,market);suggested=round(min(base,mrp),2) if mrp is not None else round(base,2)
-    p={"product":st.session_state.product,"city":city,"month":st.session_state.month,"pred":pred,"stock":float(np.ceil(pred*1.1)),"temp":temp,"holiday":holiday,"trend":trend_score,"market":float(market),"suggested":suggested,"source":weather_source,"confidence":int(np.clip(70+abs(trend_score-60)*.25,68,94))}
-    st.session_state.forecast=table;st.session_state.prediction=p;st.session_state.saved.insert(0,p.copy());st.session_state.saved=st.session_state.saved[:20];return True
+    table,city,weather_source,social_source=make_forecast(st.session_state.product,st.session_state.city);row=table.loc[table.Month==st.session_state.month].iloc[0];pred=float(row["Forecast demand"]);temp=float(row["Temperature (°C)"]);holiday=int(row["Holiday days"]);trend_score=int(row["Trend score"]);social_score=int(row["Social Viral Score"])
+    demand_factor=float(np.clip((pred-700)/5000,-0.045,0.045));weather_factor=float(np.clip((temp-27)/250,-0.025,0.025));holiday_factor=float(np.clip(holiday/600,-0.012,0.012));trend_factor=float(np.clip((trend_score-60)/3000,-0.015,0.015));social_factor=float(np.clip((social_score-60)/1800,-0.025,0.025));adjustment=float(np.clip(demand_factor+weather_factor+holiday_factor+trend_factor+social_factor,-0.08,0.08));base=market*(1+adjustment);mrp=_mrp_for_product(st.session_state.product,market);suggested=round(min(base,mrp),2) if mrp is not None else round(base,2)
+    p={"product":st.session_state.product,"city":city,"month":st.session_state.month,"pred":pred,"stock":float(np.ceil(pred*1.1)),"temp":temp,"holiday":holiday,"trend":trend_score,"social":social_score,"market":float(market),"suggested":suggested,"source":weather_source,"social_source":social_source,"confidence":int(np.clip(68+abs(trend_score-60)*.18+abs(social_score-60)*.10,68,95))};st.session_state.forecast=table;st.session_state.prediction=p;st.session_state.saved.insert(0,p.copy());st.session_state.saved=st.session_state.saved[:20];return True
 
 def normalize_prediction(p):
     if not isinstance(p,dict):return None
@@ -140,115 +146,170 @@ def normalize_prediction(p):
     try:
         for k in ["pred","stock","temp","market","suggested"]:p[k]=float(p[k])
         for k in ["holiday","trend","confidence"]:p[k]=int(p[k])
-        p["source"]=str(p.get("source","Historical weather"));return p
+        p["social"]=int(p.get("social",50));p["social_source"]=str(p.get("social_source","Social trend proxy (demo)"));p["source"]=str(p.get("source","Historical weather"));return p
     except (TypeError,ValueError):return None
+
 def matches(p):
     p=normalize_prediction(p);return bool(p) and p.get("product")==st.session_state.product and p.get("city")==st.session_state.city and p.get("month")==st.session_state.month
+
 def health(p):
     if not p:return 0
-    score=(np.clip(65+(p["trend"]-50)*.35,50,94)+np.clip(92-max(0,(p["pred"]-1200)/40),60,94)+80+np.clip(92-abs(p["temp"]-27)*1.4,60,94))/4;return int(np.clip(score,55,95))
+    score=(np.clip(65+(p["trend"]-50)*.35,50,94)+np.clip(92-max(0,(p["pred"]-1200)/40),60,94)+80+np.clip(92-abs(p["temp"]-27)*1.4,60,94)+np.clip(70+(p.get("social",50)-50)*.22,55,90))/5;return int(np.clip(score,55,95))
+
 def action_list(p):
     if not p:return [("info","Generate an AI decision","Start Product Analysis to unlock actions.")]
     a=[("critical","Increase inventory","Predicted demand is high.") if p["pred"]>1200 else ("warning","Keep inventory lean","Forecast demand is relatively low.") if p["pred"]<500 else ("info","Maintain planned stock","Demand is manageable with the 10% buffer.")]
     if p["trend"]>=78:a.append(("info","Demand surge detected","Trend score is strong; monitor replenishment more frequently."))
     if p["temp"]>=34:a.append(("warning","Watch heat sensitivity","High temperature may increase volatility for sensitive products."))
-    a.append(("warning","Review pricing","Demand-aware price is above the market reference.") if p["suggested"]>p["market"]*1.02 else ("info","Price is market-aligned","Suggested price remains close to the market reference."))
-    return a
+    if p.get("social",50)>=75:a.append(("info","Social demand signal elevated","Online trend activity may increase near-term demand volatility."))
+    a.append(("warning","Review pricing","Demand-aware price is above the market reference.") if p["suggested"]>p["market"]*1.02 else ("info","Keep price near market","Limited price change is indicated."));return a[:4]
 
-def sidebar():
-    st.sidebar.markdown("<div class='brand'><div class='mark'>🛒</div><div><div class='brand-title'>OptiRetail <span>AI</span></div><div class='brand-sub'>SMARTER DECISIONS · STRONGER RETAIL</div></div></div>",unsafe_allow_html=True)
-    st.sidebar.markdown(f"<a style='color:#34d399!important'>{html.escape(st.session_state.user or 'admin@optiretail.in')}</a>",unsafe_allow_html=True)
-    pages=[("dashboard","Dashboard"),("product","Product Analysis"),("forecast","Demand Forecasting"),("pricing","Dynamic Pricing"),("market","Market Insights"),("comparison","Product Comparison"),("simulator","AI Simulator"),("alerts","Alerts & Risk"),("copilot","AI Decision Copilot"),("saved","Saved Analyses"),("settings","Settings")]
-    for key,label in pages:
-        if st.sidebar.button(label,key=f"nav_{key}",use_container_width=True):st.session_state.page=key;st.rerun()
-    st.sidebar.markdown("<hr style='border-color:#ffffff33'>",unsafe_allow_html=True)
-    if st.sidebar.button("Sign out",key="signout",use_container_width=True):st.session_state.user=None;st.session_state.page="welcome";st.rerun()
-
-def page_header(eyebrow,title,subtitle=""):
-    st.markdown(f"<div class='hero'><div class='eyebrow'>{eyebrow}</div><h1>{title}</h1><p>{subtitle}</p></div>",unsafe_allow_html=True)
-
-def dashboard_page():
-    p=st.session_state.prediction;page_header("DASHBOARD","Turn market data into smarter decisions.","AI Action Center, health score, explainable forecast and simulator.")
-    if p:
-        cols=st.columns(5)
-        vals=[("FORECAST DEMAND",f"{int(p['pred']):,}","units"),("RECOMMENDED STOCK",f"{int(p['stock']):,}","units · 10% buffer"),("MARKET REFERENCE",f"₹{p['market']:,.2f}","live web market data"),("SOCIAL VIRAL",f"{p['trend']}/100","demand signal"),("CONFIDENCE",f"{p['confidence']}%","model confidence")]
-        for c,(a,b,d) in zip(cols,vals):c.markdown(f"<div class='kpi'><small>{a}</small><strong>{b}</strong><span>{d}</span></div>",unsafe_allow_html=True)
-        st.markdown("### AI Action Center")
-        c1,c2=st.columns(2)
-        with c1:
-            for kind,title,desc in action_list(p):st.markdown(f"<div class='action {kind}'><b>{title}</b><p>{desc}</p></div>",unsafe_allow_html=True)
-        with c2:
-            st.markdown("### Business health score");st.markdown(f"<div class='score'>{health(p)}/100</div><div class='small'>Overall health</div><div style='height:10px;background:#e2e8f0;border-radius:9px;margin-top:10px'><div style='width:{health(p)}%;height:10px;background:#079568;border-radius:9px'></div></div>",unsafe_allow_html=True)
-        st.markdown("### 12-month demand")
-        st.line_chart(st.session_state.forecast.set_index("Month")["Forecast demand"])
-        st.markdown("### Explainable AI")
-        st.markdown(f"**Product trend:** {p['trend']}/100  
-**Holiday days:** {p['holiday']}  
-**Temperature:** {p['temp']:.1f} °C")
-    else:st.info("Run Product Analysis to populate the AI dashboard.")
-
+def header(eyebrow,title,subtitle):st.markdown(f"<div class='hero'><div class='eyebrow'>{eyebrow}</div><h1>{title}</h1><p>{subtitle}</p></div>",unsafe_allow_html=True)
+def logo():st.markdown('<div class="brand"><div class="mark">🛒</div><div><div class="brand-title">OptiRetail <span>AI</span></div><div class="brand-sub">SMARTER DECISIONS · STRONGER RETAIL</div></div></div>',unsafe_allow_html=True)
+def inputs():
+    st.markdown("<div class='card'><div class='eyebrow'>ANALYSIS INPUTS</div><h3>Choose product, location and forecast month</h3>",unsafe_allow_html=True);a,b,c=st.columns([1.5,1,1])
+    with a:product=st.text_input("Product",value=st.session_state.product,key="product_input")
+    with b:city=st.text_input("City",value=st.session_state.city,key="city_input")
+    with c:month=st.selectbox("Forecast month",MONTHS,index=MONTHS.index(st.session_state.month) if st.session_state.month in MONTHS else 0,key="month_input")
+    product=product.strip() or "Wheat Flour";city=city.strip() or "Jaipur";old=st.session_state.prediction;changed=bool(old) and (old.get("product")!=product or old.get("city")!=city or old.get("month")!=month);st.session_state.product,st.session_state.city,st.session_state.month=product,city,month
+    if changed:st.session_state.prediction=None;st.session_state.forecast=None;st.session_state.price=None;st.session_state.price_source=None
+    x,y=st.columns(2)
+    with x:
+        if st.button("Refresh live market price",use_container_width=True,key="price_button"):
+            price,message=live_market_price(product,city)
+            if price is None:st.session_state.price=None;st.session_state.price_source=None;st.error(message)
+            else:st.session_state.price=price;st.session_state.price_source=message;st.success(f"Market reference: ₹{price:,.2f} · {message}")
+    with y:
+        if st.button("Generate AI Decision →",use_container_width=True,key="generate_button"):
+            if st.session_state.price is None:st.error("Refresh the market price first. A market reference is required for an AI decision.")
+            elif generate():st.success("AI decision generated successfully.")
+    if st.session_state.price is not None:st.markdown(f"<div style='background:#dcfce7;border-radius:12px;padding:14px 18px;color:#047857;font-weight:800'>Market reference: ₹{st.session_state.price:,.2f} · {html.escape(str(st.session_state.price_source or 'Live web market data'))}</div>",unsafe_allow_html=True)
+    st.markdown("</div>",unsafe_allow_html=True)
+def simulator():
+    p=normalize_prediction(st.session_state.prediction)
+    if not p:st.info("Generate a decision first to use the simulator.");return
+    header("AI SIMULATOR","Test decisions before <span>you act.</span>","Change demand, price and promotion assumptions without changing the saved forecast.");a,b,c=st.columns(3)
+    with a:price_factor=st.slider("Price change",-20,20,0,1,format="%d%%")
+    with b:demand_factor=st.slider("Demand change",-30,30,0,1,format="%d%%")
+    with c:promotion=st.slider("Promotion intensity",0,30,0,1,format="%d%%")
+    simulated=max(0,p["pred"]*(1+demand_factor/100)*(1+promotion/250)*(1-price_factor/400));stock=int(np.ceil(simulated*1.1));x,y=st.columns(2)
+    with x:st.markdown(f"<div class='kpi'><small>SIMULATED DEMAND</small><strong>{int(simulated):,} units</strong><span>Base forecast {int(p['pred']):,}</span></div>",unsafe_allow_html=True)
+    with y:st.markdown(f"<div class='kpi'><small>RECOMMENDED STOCK</small><strong>{stock:,} units</strong><span>Includes 10% buffer</span></div>",unsafe_allow_html=True)
+def dashboard():
+    p=normalize_prediction(st.session_state.prediction);cols=st.columns(5);values=[("FORECAST DEMAND",f"{int(p['pred']):,} units" if p else "—","Current month"),("RECOMMENDED STOCK",f"{int(p['stock']):,} units" if p else "—","10% planning buffer"),("MARKET REFERENCE",f"₹{p['market']:,.2f}" if p else "—","Live web market data"),("SOCIAL VIRAL",f"{p.get('social',50)}/100" if p else "—","Demand signal"),("CONFIDENCE",f"{p['confidence']}%" if p else "—","Model confidence")]
+    for col,(label,value,note) in zip(cols,values):col.markdown(f"<div class='kpi'><small>{label}</small><strong>{value}</strong><span>{note}</span></div>",unsafe_allow_html=True)
+    a,b=st.columns([1.4,1])
+    with a:
+        st.markdown("<div class='card'><div class='eyebrow'>AI ACTION CENTER</div><h3>Today's AI actions</h3>",unsafe_allow_html=True)
+        for typ,title,desc in action_list(p):st.markdown(f"<div class='action {typ}'><b>{title}</b><p>{desc}</p></div>",unsafe_allow_html=True)
+        st.markdown("</div>",unsafe_allow_html=True)
+    with b:
+        st.markdown("<div class='card'><div class='eyebrow'>RETAIL HEALTH</div><h3>Business health score</h3>",unsafe_allow_html=True)
+        if p:score=health(p);st.markdown(f"<div class='score'>{score}<span style='font-size:1rem;color:#64748b'>/100</span></div>",unsafe_allow_html=True);st.progress(score,text="Overall health")
+        else:st.info("Generate a decision to calculate the score.")
+        st.markdown("</div>",unsafe_allow_html=True)
+    if not p or st.session_state.forecast is None:st.info("Open Product Analysis and generate an AI decision.");return
+    a,b=st.columns([1.4,1])
+    with a:st.markdown("<div class='card'><div class='eyebrow'>FORECAST OUTLOOK</div><h3>12-month demand</h3>",unsafe_allow_html=True);st.line_chart(st.session_state.forecast.set_index("Month")[["Forecast demand"]],height=300);st.markdown("</div>",unsafe_allow_html=True)
+    with b:
+        st.markdown("<div class='card'><div class='eyebrow'>WHY THIS PREDICTION?</div><h3>Explainable AI</h3>",unsafe_allow_html=True)
+        for name,value in [("Product trend",f"{p['trend']}/100"),("Holiday days",p["holiday"]),("Temperature",f"{p['temp']:.1f} °C"),("Social Viral Score",f"{p.get('social',50)}/100"),("Confidence",f"{p['confidence']}%")]:st.markdown(f"<p class='small'><b>{name}</b> <span style='float:right'>{value}</span></p>",unsafe_allow_html=True)
+        st.markdown("</div>",unsafe_allow_html=True)
+    simulator()
 def product_page():
-    page_header("ANALYSIS INPUTS","Choose product, location and forecast month","Select a product and location, refresh the market reference, and generate a complete AI decision.")
-    c1,c2,c3=st.columns([1.5,1,1]);st.session_state.product=c1.text_input("Product",st.session_state.product);st.session_state.city=c2.text_input("City",st.session_state.city);st.session_state.month=c3.selectbox("Forecast month",MONTHS,index=MONTHS.index(st.session_state.month))
-    b1,b2=st.columns(2)
-    if b1.button("Refresh market price",use_container_width=True):
-        with st.spinner("Finding current market references..."):price,source=live_market_price(st.session_state.product,st.session_state.city)
-        st.session_state.price=price;st.session_state.price_source=source
-    if b2.button("Generate AI Decision →",use_container_width=True):
-        if st.session_state.price is None:
-            with st.spinner("Finding market reference..."):st.session_state.price,st.session_state.price_source=live_market_price(st.session_state.product,st.session_state.city)
-        if st.session_state.price is not None:generate();st.success("AI decision generated.")
-        else:st.error(st.session_state.price_source or "Market reference unavailable.")
-    if st.session_state.price is not None:st.success(f"Market reference: ₹{st.session_state.price:,.2f} · {st.session_state.price_source}")
-    p=st.session_state.prediction
-    if p:st.markdown(f"<div class='card'><div class='eyebrow'>LATEST RESULT</div><h3>{html.escape(p['product'])} · {html.escape(p['city'])} · {p['month']}</h3><p class='small'>Forecast demand: <b>{int(p['pred']):,}</b> units · Weather: <b>{p['temp']:.1f} °C</b> · Holiday days: <b>{p['holiday']}</b> · Social viral: <b>{p['trend']}/100</b> · Confidence: <b>{p['confidence']}%</b> · Market: <b>₹{p['market']:,.2f}</b></p></div>",unsafe_allow_html=True)
-
+    header("PRODUCT ANALYSIS","Analyze a product with <span>live market context.</span>","Select a product and location, refresh the live market reference, then generate an explainable AI decision.");inputs();p=normalize_prediction(st.session_state.prediction)
+    if matches(p):st.markdown(f"<div class='card'><div class='eyebrow'>LATEST RESULT</div><h3>{html.escape(str(p.get('product','')))} · {html.escape(str(p.get('city','')))} · {html.escape(str(p.get('month','')))}</h3><p class='small'>Forecast demand: <b>{int(p.get('pred',0)):,}</b> units · Weather: <b>{p.get('temp',0):.1f} °C</b> · Holiday days: <b>{p.get('holiday',0)}</b> · Social Viral: <b>{p.get('social',50)}/100</b> · Confidence: <b>{p.get('confidence',0)}%</b> · Market: <b>₹{p.get('market',0):,.2f}</b></p></div>",unsafe_allow_html=True)
 def forecast_page():
-    page_header("DEMAND FORECASTING","See demand before it happens.","Forecast demand across the next 12 months using multiple signals.")
-    if st.session_state.forecast is None:st.info("Generate an AI decision first.");return
-    st.dataframe(st.session_state.forecast,use_container_width=True,hide_index=True)
-    st.line_chart(st.session_state.forecast.set_index("Month")["Forecast demand"])
-
+    header("DEMAND FORECASTING","See demand change <span>across the year.</span>","Each month combines weather, holidays, product trend and social demand signals.");p=normalize_prediction(st.session_state.prediction)
+    if not p or st.session_state.forecast is None:st.info("Generate a decision first.");return
+    table=st.session_state.forecast;st.line_chart(table.set_index("Month")[["Temperature (°C)"]],height=250);st.line_chart(table.set_index("Month")[["Forecast demand"]],height=280);st.dataframe(table.assign(**{"Recommended stock":np.ceil(table["Forecast demand"]*1.1).astype(int)}),use_container_width=True,hide_index=True)
 def pricing_page():
-    page_header("DYNAMIC PRICING","Price with market awareness.","Compare the market reference with the demand-aware recommendation.")
-    p=st.session_state.prediction
-    if not p:st.info("Generate an AI decision first.");return
-    a,b,c=st.columns(3);a.metric("Market reference",f"₹{p['market']:,.2f}");b.metric("Suggested price",f"₹{p['suggested']:,.2f}");c.metric("Difference",f"{((p['suggested']/p['market'])-1)*100:+.1f}%")
-    st.markdown(f"<div class='decision'><h3>Pricing rationale</h3><p>Recommendation uses the market reference of ₹{p['market']:,.2f}, forecast demand of {int(p['pred']):,} units, temperature of {p['temp']:.1f} °C, {p['holiday']} holiday days and a social viral score of {p['trend']}/100.</p></div>",unsafe_allow_html=True)
-
-def generic_page(title,subtitle,body):
-    page_header(title.upper(),title,subtitle);st.markdown(body,unsafe_allow_html=True)
-
-def market_page():
-    generic_page("Market Insights","Understand current market conditions.","<div class='card'><h3>Market intelligence</h3><p class='small'>Live web market references are used when available. Search results are not restricted to a specific retailer.</p></div>")
-def comparison_page():
-    generic_page("Product Comparison","Compare product demand, trends and market references.","<div class='card'><h3>Compare products</h3><p class='small'>Use Product Analysis to generate results for products and compare their demand signals.</p></div>")
-def simulator_page():
-    generic_page("AI Simulator","Test how changing signals can affect demand.","<div class='card'><h3>Scenario simulation</h3><p class='small'>Experiment with demand, weather, holidays and social trend assumptions.</p></div>")
+    header("DYNAMIC PRICING","Price with <span>market awareness.</span>","Compare the market reference with the demand-aware recommendation.");p=normalize_prediction(st.session_state.prediction)
+    if not p:st.info("Generate a decision first.");return
+    a,b,c=st.columns(3);a.metric("Market reference",f"₹{p['market']:,.2f}");b.metric("Suggested price",f"₹{p['suggested']:,.2f}");c.metric("Difference",f"{((p['suggested']/p['market'])-1)*100:+.1f}%");st.markdown(f"<div class='decision'><h3>Pricing rationale</h3><p>Recommendation uses the market reference of ₹{p['market']:,.2f}, demand forecast of {int(p['pred']):,} units, temperature of {p['temp']:.1f} °C, {p['holiday']} holiday days and a Social Viral Score of {p.get('social',50)}/100.</p></div>",unsafe_allow_html=True)
+def compare_page():
+    header("PRODUCT COMPARISON","Compare products with <span>one model.</span>","Compare expected demand, peak month and inventory requirement.");a,b,c=st.columns(3)
+    with a:p1=st.text_input("Product 1",value=st.session_state.product,key="cmp1")
+    with b:p2=st.text_input("Product 2",value="Rice 5kg",key="cmp2")
+    with c:p3=st.text_input("Product 3",value="Cooking Oil 1L",key="cmp3")
+    if st.button("Compare products →",use_container_width=True,key="compare_button"):
+        rows=[]
+        for product in [p1,p2,p3]:
+            if product.strip():table,resolved_city,_,social_source=make_forecast(product,st.session_state.city);peak=table.loc[table["Forecast demand"].idxmax()];rows.append({"Product":product,"City":resolved_city,"Social Viral":int(table["Social Viral Score"].iloc[0]),"12-month demand":int(table["Forecast demand"].sum()),"Peak month":peak.Month,"Peak demand":int(peak["Forecast demand"]),"Recommended stock":int(np.ceil(table["Forecast demand"].sum()*1.1))})
+        st.dataframe(pd.DataFrame(rows),use_container_width=True,hide_index=True)
 def alerts_page():
-    generic_page("Alerts & Risk","Identify demand and pricing risks early.","<div class='card'><h3>Risk monitoring</h3><p class='small'>Alerts are generated from forecast demand, social trend intensity and market-aware pricing.</p></div>")
+    header("ALERTS & RISK","See risks before they become <span>retail problems.</span>","Early-warning signals generated from the current forecast.");p=normalize_prediction(st.session_state.prediction)
+    if not p:st.info("Generate a decision first.");return
+    for typ,title,desc in action_list(p):st.markdown(f"<div class='card'><h3>{'🔴' if typ=='critical' else '🟠' if typ=='warning' else '🔵'} {title}</h3><p class='small'>{desc}</p></div>",unsafe_allow_html=True)
 def copilot_page():
-    generic_page("AI Decision Copilot","Turn model outputs into practical retail actions.","<div class='card'><h3>AI recommendation</h3><p class='small'>The copilot explains inventory and pricing recommendations using the current forecast signals.</p></div>")
-def saved_page():
-    page_header("SAVED ANALYSES","Your saved decisions.")
-    if not st.session_state.saved:st.info("No saved analyses yet.");return
-    for p in st.session_state.saved:
-        p=normalize_prediction(p)
-        if p:st.markdown(f"<div class='card'><h3>{html.escape(p['product'])} · {html.escape(p['city'])} · {p['month']}</h3><p class='small'>Demand {int(p['pred']):,} · Social viral {p['trend']}/100 · Market ₹{p['market']:,.2f} · Suggested ₹{p['suggested']:,.2f}</p></div>",unsafe_allow_html=True)
+    header("AI DECISION COPILOT","Ask OptiRetail AI <span>in plain language.</span>","Get a concise answer from the current forecast context.");question=st.text_input("Ask a question",placeholder="Why should I increase stock?",key="question")
+    if st.button("Analyze question →",use_container_width=True,key="ask"):
+        p=normalize_prediction(st.session_state.prediction)
+        if not p:st.info("Generate a decision first.")
+        elif not question.strip():st.warning("Enter a question first.")
+        else:
+            query=question.lower()
+            if "stock" in query or "inventory" in query:answer=f"Plan about {int(p['stock']):,} units for {p['product']} in {p['month']}. Forecast demand is {int(p['pred']):,} units with a 10% buffer."
+            elif "weather" in query:answer=f"{p['month']} is estimated at {p['temp']:.1f} °C using {p['source']}."
+            elif "social" in query or "viral" in query:answer=f"The Social Viral Score is {p.get('social',50)}/100, using {p.get('social_source','a social trend proxy')} as a demand signal."
+            elif "price" in query:answer=f"The market reference is ₹{p['market']:,.2f}; the demand-aware recommendation is ₹{p['suggested']:,.2f}."
+            else:answer=f"The model forecasts {int(p['pred']):,} units with {p['confidence']}% confidence. Trend is {p['trend']}/100, social score is {p.get('social',50)}/100 and temperature is {p['temp']:.1f} °C."
+            st.markdown(f"<div class='decision'><h3>OptiRetail AI</h3><p>{html.escape(answer)}</p></div>",unsafe_allow_html=True)
 def settings_page():
-    generic_page("Settings","Manage your workspace.","<div class='card'><h3>Workspace settings</h3><p class='small'>OptiRetail AI uses session-based workspace data in this build. MongoDB is currently disabled.</p></div>")
-
-def welcome_page():
-    st.markdown("<div class='auth'><div class='auth-card'><h1 class='auth-title'>Create your OptiRetail AI workspace.</h1><p class='auth-sub'>Build smarter retail decisions with demand forecasting, market awareness and AI recommendations.</p></div></div>",unsafe_allow_html=True)
-    with st.form("login"):
-        email=st.text_input("Email");password=st.text_input("Password",type="password");submitted=st.form_submit_button("Sign in")
-        if submitted:
-            user=authenticate(email,password)
-            if user:st.session_state.user=user["email"];st.session_state.page="dashboard";st.rerun()
-            elif email.strip() and password:st.session_state.user=email.strip().lower();st.session_state.page="dashboard";st.rerun()
-
-if st.session_state.user:
-    sidebar()
-    pages={"dashboard":dashboard_page,"product":product_page,"forecast":forecast_page,"pricing":pricing_page,"market":market_page,"comparison":comparison_page,"simulator":simulator_page,"alerts":alerts_page,"copilot":copilot_page,"saved":saved_page,"settings":settings_page}
-    pages.get(st.session_state.page,dashboard_page)()
-else:welcome_page()
+    header("SETTINGS","Configure your <span>workspace.</span>","Presentation build settings and account information.");user=st.session_state.user or {};st.text_input("Email",value=user.get("email",""),disabled=True);st.text_input("GST Number",value=user.get("gst",""),disabled=True);st.text_input("Annual Turnover",value=user.get("turnover",""),disabled=True);st.info("MongoDB and Brevo are disabled in this presentation build. Account data is kept in the Streamlit session.")
+with st.sidebar:
+    logo()
+    if st.session_state.user:
+        st.caption(st.session_state.user.get("email","Business User"));items=[("Dashboard","dashboard"),("Product Analysis","product"),("Demand Forecasting","forecast"),("Dynamic Pricing","pricing"),("Market Insights","market"),("Product Comparison","compare"),("AI Simulator","simulator"),("Alerts & Risk","alerts"),("AI Decision Copilot","copilot"),("Saved Analyses","saved"),("Settings","settings")]
+        for label,target in items:
+            if st.button(label,use_container_width=True,key="nav_"+target):st.session_state.page=target;st.rerun()
+        if st.button("Sign out",use_container_width=True,key="signout"):st.session_state.user=None;st.session_state.page="welcome";st.rerun()
+if st.session_state.page=="welcome":
+    header("OPTIRETAIL AI","Turn market data into <span>smarter decisions.</span>","Forecast demand, use live web market intelligence, simulate scenarios, detect risks and explain AI recommendations.");a,b,c,d=st.columns(4)
+    for col,title,desc in zip([a,b,c,d],["Predict","Decide","Simulate","Explain"],["12-month demand forecast","AI Action Center","What-if scenarios","Confidence and drivers"]):col.markdown(f"<div class='card'><div class='eyebrow'>AI</div><h3>{title}</h3><p class='small'>{desc}</p></div>",unsafe_allow_html=True)
+    x,y=st.columns(2)
+    with x:
+        if st.button("Get Started →",use_container_width=True,key="start"):st.session_state.page="signup";st.rerun()
+    with y:
+        if st.button("Sign in",use_container_width=True,key="home_login"):st.session_state.page="login";st.rerun()
+elif st.session_state.page=="login":
+    st.markdown("<div class='auth'><div class='auth-card'><div class='eyebrow'>WELCOME BACK</div><h1 class='auth-title'>Sign in to OptiRetail AI</h1><p class='auth-sub'>Access your retail intelligence workspace.</p>",unsafe_allow_html=True)
+    with st.form("login_form"):email=st.text_input("Email address");password=st.text_input("Password",type="password");submit=st.form_submit_button("Sign in",use_container_width=True)
+    if submit:
+        user=authenticate(email,password)
+        if user:st.session_state.user=user;st.session_state.page="dashboard";st.rerun()
+        else:st.error("Invalid credentials. Create an account first in this session.")
+    if st.button("Create an account →",key="login_signup"):st.session_state.page="signup";st.rerun()
+    st.markdown("</div></div>",unsafe_allow_html=True)
+elif st.session_state.page=="signup":
+    st.markdown("<div class='auth'><div class='auth-card'><div class='eyebrow'>BUSINESS ONBOARDING</div><h1 class='auth-title'>Create your OptiRetail AI workspace</h1><p class='auth-sub'>Presentation-ready account with session storage.</p>",unsafe_allow_html=True)
+    with st.form("signup_form"):email=st.text_input("Email address");password=st.text_input("Password",type="password");gst=st.text_input("GST Number");turnover=st.selectbox("Annual Turnover",["1–5 Lakh","5–10 Lakh","10–15 Lakh","15–50 Lakh","50 Lakh+"]);submit=st.form_submit_button("Create account",use_container_width=True)
+    if submit:
+        if not email or "@" not in email or not password or not gst:st.error("Please enter a valid email, password and GST number.")
+        else:
+            ok,message=signup(email,password,gst,turnover)
+            if ok:st.success(message);st.session_state.page="login";st.rerun()
+            else:st.error(message)
+    st.markdown("</div></div>",unsafe_allow_html=True)
+elif st.session_state.user:
+    if st.session_state.page=="dashboard":header("DASHBOARD","Turn market data into <span>smarter decisions.</span>","AI Action Center, health score, explainable forecast and simulator.");dashboard()
+    elif st.session_state.page=="product":product_page()
+    elif st.session_state.page=="forecast":forecast_page()
+    elif st.session_state.page=="pricing":pricing_page()
+    elif st.session_state.page=="simulator":simulator()
+    elif st.session_state.page=="market":
+        header("MARKET INSIGHTS","Live <span>web market intelligence.</span>","SerpApi searches the web for current product price signals.");price,message=live_market_price(st.session_state.product,st.session_state.city)
+        if price is None:st.error(message)
+        else:st.session_state.price=price;st.session_state.price_source=message;st.metric("Current market reference",f"₹{price:,.2f}");st.caption(message)
+    elif st.session_state.page=="compare":compare_page()
+    elif st.session_state.page=="alerts":alerts_page()
+    elif st.session_state.page=="copilot":copilot_page()
+    elif st.session_state.page=="saved":
+        header("SAVED ANALYSES","Keep your important <span>AI decisions.</span>","Recent session decisions.")
+        if not st.session_state.saved:st.info("No saved analyses yet.")
+        for saved in st.session_state.saved[:10]:
+            p=normalize_prediction(saved)
+            if p:st.markdown(f"<div class='card'><h3>{html.escape(str(p['product']))} · {html.escape(str(p['city']))} · {p['month']}</h3><p class='small'>Demand {int(p['pred']):,} · Stock {int(p['stock']):,} · Market ₹{p['market']:,.2f} · Social Viral {p.get('social',50)}/100 · Confidence {p['confidence']}%</p></div>",unsafe_allow_html=True)
+    elif st.session_state.page=="settings":settings_page()
+    else:st.session_state.page="dashboard";st.rerun()
+else:st.session_state.page="welcome";st.rerun()
