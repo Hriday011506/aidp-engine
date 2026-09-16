@@ -148,22 +148,19 @@ def live_market_price(product,city):
         for item in results[:40]:
             title=str(item.get("title","")).strip(); price=_price_number(item.get("extracted_price",item.get("price")))
             if not title or price is None or not 0<price<100000:continue
-            score=_product_score(product,title)
-            if score<.34:continue
-            source=str(item.get("source") or item.get("merchant") or "Retailer").strip()
-            candidates.append({"price":price,"source":source,"score":score})
+            source=str(item.get("source") or item.get("merchant") or "SerpApi result").strip()
+            candidates.append({"price":price,"source":source})
         if not candidates:return None,f"No usable retailer price found for {product} in {city}."
-        candidates.sort(key=lambda x:x["score"],reverse=True); top_score=candidates[0]["score"]
-        selected=[x for x in candidates if x["score"]>=max(.34,top_score-.12)][:8]
+        selected=candidates[:8]
         price=round(float(np.median([x["price"] for x in selected])),2)
         sources=[]
         for x in selected:
             if x["source"] and x["source"] not in sources:sources.append(x["source"])
-        return price,f"Live retailer reference · {', '.join(sources[:5]) or 'retailer shopping results'}"
+        return price,f"Live market reference · {', '.join(sources[:5]) or 'SerpApi shopping results'}"
     except requests.exceptions.Timeout:
         cached=st.session_state.get("price")
         if cached is not None:
-            return float(cached),"Cached retailer reference · live refresh timed out"
+            return float(cached),"Cached market reference · live refresh timed out"
         fallback,fallback_source=_fallback_market_reference(product)
         if fallback is not None:
             return fallback,fallback_source+" · live lookup timed out"
@@ -249,7 +246,7 @@ def inputs():
                 st.session_state.price=None; st.session_state.price_source=None; st.error(message)
             else:
                 st.session_state.price=price; st.session_state.price_source=message
-                if str(message).startswith("Live retailer reference"):
+                if str(message).startswith("Live market reference"):
                     st.success(f"Live market reference: ₹{price:,.2f} · {message}")
                 else:
                     st.warning(f"Market reference: ₹{price:,.2f} · {message}")
