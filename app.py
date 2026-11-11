@@ -412,6 +412,10 @@ elif st.session_state.page=="login":
     </style>
     """,unsafe_allow_html=True)
 
+    if st.button("←  Back to welcome",key="login_back_welcome"):
+        st.session_state.page="welcome"
+        st.rerun()
+
     with st.container(key="login_layout"):
         form_col,promo_col=st.columns([1,1],gap=None)
         with form_col:
@@ -454,9 +458,6 @@ elif st.session_state.page=="login":
                 <div class="promo-points">↗ &nbsp; Demand forecasting and trend signals<br>↗ &nbsp; Market-aware pricing insights<br>↗ &nbsp; Inventory planning and decision support</div>
                 <div class="promo-footer">OPTIRETAIL AI &nbsp; / &nbsp; RETAIL DECISION INTELLIGENCE</div>
                 """,unsafe_allow_html=True)
-    if st.button("← Back to home",key="login_back_home"):
-        st.session_state.page="welcome"
-        st.rerun()
 elif st.session_state.page=="signup":
     # Signup page uses the same visual language as the welcome and login pages.
     try:
@@ -503,6 +504,10 @@ elif st.session_state.page=="signup":
     }}
     </style>
     """,unsafe_allow_html=True)
+
+    if st.button("←  Back to welcome",key="signup_back_welcome"):
+        st.session_state.page="welcome"
+        st.rerun()
 
     with st.container(key="signup_shell"):
         brand_col,form_col=st.columns([0.9,1.1],gap=None)
