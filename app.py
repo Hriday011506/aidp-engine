@@ -345,7 +345,6 @@ with st.sidebar:
                     st.session_state.page="signup"
                     st.rerun()
                 st.markdown('<div class="welcome-foot">SMARTER DECISIONS · STRONGER RETAIL</div>',unsafe_allow_html=True)
-n";st.rerun()
 elif st.session_state.page=="login":
     # Deployment refresh: login reference layout
     # Login layout recreated from the supplied visual reference.
