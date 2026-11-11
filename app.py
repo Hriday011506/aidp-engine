@@ -360,55 +360,55 @@ elif st.session_state.page=="login":
 
     st.markdown(f"""
     <style>
-    [data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"]{display:none!important}
-    [data-testid="stAppViewContainer"],.stApp{background:#f4f6f9!important}
-    header[data-testid="stHeader"]{background:transparent!important}
-    .block-container{max-width:1500px!important;padding:2.7rem 2.8rem 2rem!important}
-    .st-key-login_layout{background:#fff!important;border:1px solid #e3e9ef!important;border-radius:30px!important;overflow:hidden!important;box-shadow:0 24px 80px rgba(20,35,55,.10)!important;padding:0!important}
-    .st-key-login_layout [data-testid="stHorizontalBlock"]{gap:0!important;align-items:stretch!important}
-    .st-key-login_form_panel{background:#fff!important;padding:4.4rem 4.1rem 3.2rem!important;min-height:780px!important;height:100%!important;justify-content:center!important}
-    .st-key-login_form_panel .login-brand{display:flex;align-items:center;gap:11px;font-size:19px;font-weight:850;letter-spacing:-.6px;color:#142033!important;margin-bottom:78px}
-    .st-key-login_form_panel .login-brand .brand-icon{height:38px;width:38px;border-radius:12px;background:#07866e;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 7px 16px #07866e30}
-    .st-key-login_form_panel .login-brand .brand-ai{color:#07866e!important}
-    .st-key-login_form_panel .login-kicker{font-size:10px;letter-spacing:2.6px;text-transform:uppercase;font-weight:900;color:#078b72!important;margin-bottom:17px}
-    .st-key-login_form_panel .login-title{font-size:39px;line-height:1.12;letter-spacing:-1.8px;font-weight:850;color:#111d2d!important;margin:0 0 13px}
-    .st-key-login_form_panel .login-subtitle{font-size:14px;line-height:1.8;color:#8492a6!important;margin-bottom:30px;max-width:440px}
-    .st-key-login_form_panel [data-testid="stWidgetLabel"] p{font-size:12px!important;font-weight:800!important;color:#334155!important}
-    .st-key-login_form_panel [data-testid="stTextInput"] input{height:51px!important;border:1px solid #d8e4e5!important;border-radius:10px!important;background:#fff!important;color:#172538!important;padding:0 14px!important;box-shadow:none!important}
-    .st-key-login_form_panel [data-testid="stTextInput"] input:focus{border-color:#159b81!important;box-shadow:0 0 0 3px #159b8118!important}
-    .st-key-login_form_panel [data-testid="stFormSubmitButton"] button{height:53px!important;border:0!important;border-radius:11px!important;background:#1c293c!important;color:#fff!important;font-size:14px!important;font-weight:750!important;box-shadow:0 9px 18px #1c293c25!important;transition:all .2s ease}
-    .st-key-login_form_panel [data-testid="stFormSubmitButton"] button:hover{background:#0e1a2b!important;transform:translateY(-1px)}
-    .st-key-login_form_panel [data-testid="stButton"] button{height:45px!important;background:#fff!important;border:1px solid #dce6e6!important;color:#087e68!important;border-radius:10px!important;font-weight:750!important}
-    .st-key-login_form_panel [data-testid="stCaptionContainer"] p{font-size:12px!important;color:#77869a!important}
-    .st-key-login_form_panel [data-testid="stAlert"]{border-radius:10px!important}
-    .st-key-login_promo{position:relative!important;overflow:hidden!important;isolation:isolate!important;min-height:780px!important;height:100%!important;padding:4.1rem 3.3rem 3rem!important;background-color:#06252d!important;background-image:linear-gradient(145deg,rgba(3,25,34,.32),rgba(3,55,53,.50)),url("data:image/png;base64,{login_bg}")!important;background-size:cover!important;background-position:center center!important;background-repeat:no-repeat!important}
+    [data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"]{{display:none!important}}
+    [data-testid="stAppViewContainer"],.stApp{{background:#f4f6f9!important}}
+    header[data-testid="stHeader"]{{background:transparent!important}}
+    .block-container{{max-width:1500px!important;padding:2.7rem 2.8rem 2rem!important}}
+    .st-key-login_layout{{background:#fff!important;border:1px solid #e3e9ef!important;border-radius:30px!important;overflow:hidden!important;box-shadow:0 24px 80px rgba(20,35,55,.10)!important;padding:0!important}}
+    .st-key-login_layout [data-testid="stHorizontalBlock"]{{gap:0!important;align-items:stretch!important}}
+    .st-key-login_form_panel{{background:#fff!important;padding:4.4rem 4.1rem 3.2rem!important;min-height:780px!important;height:100%!important;justify-content:center!important}}
+    .st-key-login_form_panel .login-brand{{display:flex;align-items:center;gap:11px;font-size:19px;font-weight:850;letter-spacing:-.6px;color:#142033!important;margin-bottom:78px}}
+    .st-key-login_form_panel .login-brand .brand-icon{{height:38px;width:38px;border-radius:12px;background:#07866e;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 7px 16px #07866e30}}
+    .st-key-login_form_panel .login-brand .brand-ai{{color:#07866e!important}}
+    .st-key-login_form_panel .login-kicker{{font-size:10px;letter-spacing:2.6px;text-transform:uppercase;font-weight:900;color:#078b72!important;margin-bottom:17px}}
+    .st-key-login_form_panel .login-title{{font-size:39px;line-height:1.12;letter-spacing:-1.8px;font-weight:850;color:#111d2d!important;margin:0 0 13px}}
+    .st-key-login_form_panel .login-subtitle{{font-size:14px;line-height:1.8;color:#8492a6!important;margin-bottom:30px;max-width:440px}}
+    .st-key-login_form_panel [data-testid="stWidgetLabel"] p{{font-size:12px!important;font-weight:800!important;color:#334155!important}}
+    .st-key-login_form_panel [data-testid="stTextInput"] input{{height:51px!important;border:1px solid #d8e4e5!important;border-radius:10px!important;background:#fff!important;color:#172538!important;padding:0 14px!important;box-shadow:none!important}}
+    .st-key-login_form_panel [data-testid="stTextInput"] input:focus{{border-color:#159b81!important;box-shadow:0 0 0 3px #159b8118!important}}
+    .st-key-login_form_panel [data-testid="stFormSubmitButton"] button{{height:53px!important;border:0!important;border-radius:11px!important;background:#1c293c!important;color:#fff!important;font-size:14px!important;font-weight:750!important;box-shadow:0 9px 18px #1c293c25!important;transition:all .2s ease}}
+    .st-key-login_form_panel [data-testid="stFormSubmitButton"] button:hover{{background:#0e1a2b!important;transform:translateY(-1px)}}
+    .st-key-login_form_panel [data-testid="stButton"] button{{height:45px!important;background:#fff!important;border:1px solid #dce6e6!important;color:#087e68!important;border-radius:10px!important;font-weight:750!important}}
+    .st-key-login_form_panel [data-testid="stCaptionContainer"] p{{font-size:12px!important;color:#77869a!important}}
+    .st-key-login_form_panel [data-testid="stAlert"]{{border-radius:10px!important}}
+    .st-key-login_promo{{position:relative!important;overflow:hidden!important;isolation:isolate!important;min-height:780px!important;height:100%!important;padding:4.1rem 3.3rem 3rem!important;background-color:#06252d!important;background-image:linear-gradient(145deg,rgba(3,25,34,.32),rgba(3,55,53,.50)),url("data:image/png;base64,{login_bg}")!important;background-size:cover!important;background-position:center center!important;background-repeat:no-repeat!important}}
     
     
-    .st-key-login_promo .promo-brand{font-size:19px;font-weight:850;letter-spacing:-.6px;color:#fff!important}
-    .st-key-login_promo .promo-brand span{color:#69e0bc!important}
-    .st-key-login_promo .promo-overline{font-size:10px;letter-spacing:3px;font-weight:900;color:#77d8c2!important;text-transform:uppercase;margin-top:112px}
-    .st-key-login_promo .promo-headline{font-size:48px;line-height:1.1;letter-spacing:-2px;font-weight:850;color:#fff!important;margin:24px 0}
-    .st-key-login_promo .promo-copy{font-size:15px;line-height:1.9;color:#b9cbd2!important;max-width:490px}
-    .st-key-login_promo .promo-stats{display:flex;gap:14px;margin-top:48px}
-    .st-key-login_promo .stat-box{min-width:135px;padding:15px 17px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.055);border-radius:15px}
-    .st-key-login_promo .stat-number{font-size:21px;font-weight:850;color:#fff!important}
-    .st-key-login_promo .stat-label{font-size:10px;letter-spacing:.4px;color:#9fb6bf!important;margin-top:4px}
-    .st-key-login_promo .promo-divider{height:1px;background:#ffffff28;margin:48px 0 24px}
-    .st-key-login_promo .promo-points{font-size:13px;line-height:2.8;color:#d5e3e5!important}
-    .st-key-login_promo .promo-footer{font-size:10px;letter-spacing:1.5px;color:#77969e!important;margin-top:34px}
-    .login-back{max-width:1500px;margin:13px auto 0}
-    @media(max-width:900px){
-      .block-container{padding:1rem .7rem!important}
-      .st-key-login_layout [data-testid="stHorizontalBlock"]{flex-wrap:wrap!important}
-      .st-key-login_layout [data-testid="column"]{min-width:100%!important}
-      .st-key-login_form_panel{min-height:auto!important;padding:2.3rem 1.7rem!important}
-      .st-key-login_form_panel .login-brand{margin-bottom:42px}
-      .st-key-login_form_panel .login-title{font-size:32px}
-      .st-key-login_promo{min-height:520px!important;height:auto!important;padding:2.5rem 1.7rem!important;background-position:center center!important}
-      .st-key-login_promo .promo-overline{margin-top:52px}
-      .st-key-login_promo .promo-headline{font-size:36px}
-      .st-key-login_promo .promo-divider{margin:28px 0 15px}
-    }
+    .st-key-login_promo .promo-brand{{font-size:19px;font-weight:850;letter-spacing:-.6px;color:#fff!important}}
+    .st-key-login_promo .promo-brand span{{color:#69e0bc!important}}
+    .st-key-login_promo .promo-overline{{font-size:10px;letter-spacing:3px;font-weight:900;color:#77d8c2!important;text-transform:uppercase;margin-top:112px}}
+    .st-key-login_promo .promo-headline{{font-size:48px;line-height:1.1;letter-spacing:-2px;font-weight:850;color:#fff!important;margin:24px 0}}
+    .st-key-login_promo .promo-copy{{font-size:15px;line-height:1.9;color:#b9cbd2!important;max-width:490px}}
+    .st-key-login_promo .promo-stats{{display:flex;gap:14px;margin-top:48px}}
+    .st-key-login_promo .stat-box{{min-width:135px;padding:15px 17px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.055);border-radius:15px}}
+    .st-key-login_promo .stat-number{{font-size:21px;font-weight:850;color:#fff!important}}
+    .st-key-login_promo .stat-label{{font-size:10px;letter-spacing:.4px;color:#9fb6bf!important;margin-top:4px}}
+    .st-key-login_promo .promo-divider{{height:1px;background:#ffffff28;margin:48px 0 24px}}
+    .st-key-login_promo .promo-points{{font-size:13px;line-height:2.8;color:#d5e3e5!important}}
+    .st-key-login_promo .promo-footer{{font-size:10px;letter-spacing:1.5px;color:#77969e!important;margin-top:34px}}
+    .login-back{{max-width:1500px;margin:13px auto 0}}
+    @media(max-width:900px){{
+      .block-container{{padding:1rem .7rem!important}}
+      .st-key-login_layout [data-testid="stHorizontalBlock"]{{flex-wrap:wrap!important}}
+      .st-key-login_layout [data-testid="column"]{{min-width:100%!important}}
+      .st-key-login_form_panel{{min-height:auto!important;padding:2.3rem 1.7rem!important}}
+      .st-key-login_form_panel .login-brand{{margin-bottom:42px}}
+      .st-key-login_form_panel .login-title{{font-size:32px}}
+      .st-key-login_promo{{min-height:520px!important;height:auto!important;padding:2.5rem 1.7rem!important;background-position:center center!important}}
+      .st-key-login_promo .promo-overline{{margin-top:52px}}
+      .st-key-login_promo .promo-headline{{font-size:36px}}
+      .st-key-login_promo .promo-divider{{margin:28px 0 15px}}
+    }}
     </style>
     """,unsafe_allow_html=True)
 
