@@ -272,14 +272,84 @@ if st.session_state.page=="welcome":
     with y:
         if st.button("Sign in",use_container_width=True,key="home_login"):st.session_state.page="login";st.rerun()
 elif st.session_state.page=="login":
-    st.markdown("<div class='auth'><div class='auth-card'><div class='eyebrow'>WELCOME BACK</div><h1 class='auth-title'>Sign in to OptiRetail AI</h1><p class='auth-sub'>Access your retail intelligence workspace.</p>",unsafe_allow_html=True)
-    with st.form("login_form"):email=st.text_input("Email address");password=st.text_input("Password",type="password");submit=st.form_submit_button("Sign in",use_container_width=True)
-    if submit:
-        user=authenticate(email,password)
-        if user:st.session_state.user=user;st.session_state.page="dashboard";st.rerun()
-        else:st.error("Invalid credentials. Create an account first in this session.")
-    if st.button("Create an account →",key="login_signup"):st.session_state.page="signup";st.rerun()
-    st.markdown("</div></div>",unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+    /* Login-only design. No global dashboard styles are changed. */
+    [data-testid="stSidebar"] {display:none!important}
+    [data-testid="stSidebarCollapsedControl"] {display:none!important}
+    .block-container {max-width:1180px!important;padding:4vh 2rem 3rem!important}
+    .stApp {background:radial-gradient(ellipse at 12% 5%,#e1f5ee 0%,transparent 42%),linear-gradient(135deg,#f8fafc,#eef5f4)!important}
+    .st-key-login_layout {background:#fff;border:1px solid #e4eae8;border-radius:28px;box-shadow:0 28px 80px rgba(15,23,42,.10);overflow:hidden;padding:0!important}
+    .st-key-login_layout [data-testid="stHorizontalBlock"] {gap:0!important;align-items:stretch!important}
+    .st-key-login_intro {background:linear-gradient(145deg,#062e2a,#07594c 70%,#0a806b);padding:58px 44px 52px;min-height:585px}
+    .st-key-login_intro * {color:#fff!important}
+    .st-key-login_form_panel {padding:58px 54px 45px;background:#fff}
+    .login-brand {font-weight:800;font-size:20px;letter-spacing:-.8px;display:flex;align-items:center;gap:10px}
+    .login-mark {width:36px;height:36px;background:#ffffff25;border:1px solid #ffffff45;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:19px}
+    .login-eyebrow {font-size:11px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#a7f3d0!important;margin:82px 0 14px}
+    .login-headline {font-size:clamp(30px,3vw,45px);font-weight:850;line-height:1.13;letter-spacing:-1.8px;margin:0 0 18px}
+    .login-description {font-size:15px;line-height:1.85;color:#d0eae2!important;max-width:350px}
+    .login-benefits {margin-top:56px;border-top:1px solid #ffffff35;padding-top:25px;font-size:13px;line-height:2.4;color:#e3f5ef!important}
+    .login-form-kicker {color:#07866b;font-size:11px;font-weight:800;letter-spacing:2.2px;text-transform:uppercase}
+    .login-form-title {font-size:34px;letter-spacing:-1.3px;font-weight:850;color:#0f172a;line-height:1.2;margin:12px 0}
+    .login-form-sub {font-size:14px;color:#64748b;line-height:1.6;margin-bottom:28px}
+    .st-key-login_form_panel label p {font-size:13px!important;color:#334155!important;font-weight:700!important}
+    .st-key-login_form_panel [data-testid="stTextInput"] input {border:1px solid #dce5e3!important;border-radius:12px!important;background:#fbfdfc!important;padding:12px 14px!important;height:48px!important;box-shadow:none!important}
+    .st-key-login_form_panel [data-testid="stTextInput"] input:focus {border-color:#059669!important;box-shadow:0 0 0 3px #10b98120!important}
+    .st-key-login_form_panel [data-testid="stFormSubmitButton"] button {height:49px!important;background:#087d64!important;border-radius:12px!important;font-size:14px!important}
+    .st-key-login_form_panel [data-testid="stFormSubmitButton"] button:hover {background:#065f4f!important}
+    .st-key-login_form_panel [data-testid="stButton"] button {background:#f0f8f5!important;color:#087d64!important;border:1px solid #d7ebe3!important}
+    .login-legal {text-align:center;color:#94a3b8;font-size:11px;margin-top:22px}
+    @media(max-width:850px){
+      .block-container{padding:1.5rem .8rem!important}
+      .st-key-login_intro{min-height:auto;padding:30px 26px}
+      .login-eyebrow{margin-top:22px}
+      .login-headline{font-size:29px}
+      .login-benefits{margin-top:18px}
+      .st-key-login_form_panel{padding:34px 26px}
+      .st-key-login_layout [data-testid="stHorizontalBlock"]{flex-wrap:wrap!important}
+      .st-key-login_layout [data-testid="column"]{min-width:100%!important}
+    }
+    </style>
+    """,unsafe_allow_html=True)
+    with st.container(key="login_layout"):
+        left,right=st.columns([1.05,1],gap="small")
+        with left:
+            with st.container(key="login_intro"):
+                st.markdown("""
+                <div class="login-brand"><span class="login-mark">◈</span> OptiRetail <span style="color:#a7f3d0">AI</span></div>
+                <div class="login-eyebrow">Retail intelligence platform</div>
+                <div class="login-headline">Smarter retail<br>starts here.</div>
+                <div class="login-description">Your workspace for demand forecasting, competitive pricing insights, and more confident inventory decisions.</div>
+                <div class="login-benefits">✓ AI-powered demand insights<br>✓ Dynamic pricing intelligence<br>✓ Inventory planning, simplified</div>
+                """,unsafe_allow_html=True)
+        with right:
+            with st.container(key="login_form_panel"):
+                st.markdown("""
+                <div class="login-form-kicker">Welcome back</div>
+                <div class="login-form-title">Sign in to your account</div>
+                <div class="login-form-sub">Enter your credentials to access your OptiRetail AI workspace.</div>
+                """,unsafe_allow_html=True)
+                with st.form("login_form"):
+                    email=st.text_input("Work email",placeholder="name@company.com")
+                    password=st.text_input("Password",type="password",placeholder="Enter your password")
+                    submit=st.form_submit_button("Sign in to workspace  →",use_container_width=True)
+                if submit:
+                    user=authenticate(email,password)
+                    if user:
+                        st.session_state.user=user
+                        st.session_state.page="dashboard"
+                        st.rerun()
+                    else:
+                        st.error("Invalid credentials. Create an account first in this session.")
+                st.caption("New to OptiRetail AI?")
+                if st.button("Create an account",key="login_signup",use_container_width=True):
+                    st.session_state.page="signup"
+                    st.rerun()
+                st.markdown('<div class="login-legal">© OptiRetail AI · Secure workspace access</div>',unsafe_allow_html=True)
+    if st.button("← Back to home",key="login_back_home"):
+        st.session_state.page="welcome"
+        st.rerun()
 elif st.session_state.page=="signup":
     st.markdown("<div class='auth'><div class='auth-card'><div class='eyebrow'>BUSINESS ONBOARDING</div><h1 class='auth-title'>Create your OptiRetail AI workspace</h1><p class='auth-sub'>Presentation-ready account with session storage.</p>",unsafe_allow_html=True)
     with st.form("signup_form"):email=st.text_input("Email address");password=st.text_input("Password",type="password");gst=st.text_input("GST Number");turnover=st.selectbox("Annual Turnover",["1–5 Lakh","5–10 Lakh","10–15 Lakh","15–50 Lakh","50 Lakh+"]);submit=st.form_submit_button("Create account",use_container_width=True)
