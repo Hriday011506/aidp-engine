@@ -473,7 +473,7 @@ elif st.session_state.page=="signup":
     .block-container{{max-width:1450px!important;padding:2.3rem 2rem 2rem!important}}
     .st-key-signup_shell{{background:#fff!important;border:1px solid #e1e9e8!important;border-radius:28px!important;overflow:hidden!important;box-shadow:0 24px 75px rgba(15,35,48,.10)!important;padding:0!important}}
     .st-key-signup_shell [data-testid="stHorizontalBlock"]{{gap:0!important;align-items:stretch!important}}
-    .st-key-signup_brand{{min-height:690px!important;padding:3.5rem 3rem!important;background-color:#06252d!important;background-image:linear-gradient(145deg,rgba(3,25,34,.32),rgba(3,55,53,.50)),url("data:image/png;base64,{signup_bg}")!important;background-size:cover!important;background-position:center!important;justify-content:space-between!important}}
+    .st-key-signup_brand{{min-height:780px!important;height:100%!important;padding:3.5rem 3rem!important;background-color:#06252d!important;background-image:linear-gradient(145deg,rgba(3,25,34,.32),rgba(3,55,53,.50)),url("data:image/png;base64,{signup_bg}")!important;background-size:cover!important;background-position:center!important;justify-content:space-between!important}}
     .st-key-signup_brand .signup-brandname{{font-size:21px;font-weight:850;letter-spacing:-.5px;color:#fff!important}}
     .st-key-signup_brand .signup-brandname span{{color:#56e3b8!important}}
     .st-key-signup_brand .signup-overline{{font-size:10px;letter-spacing:2.8px;text-transform:uppercase;font-weight:900;color:#6ce6c4!important;margin-top:100px}}
@@ -481,7 +481,7 @@ elif st.session_state.page=="signup":
     .st-key-signup_brand .signup-copy{{font-size:15px;line-height:1.85;color:#d0e3e3!important;max-width:430px}}
     .st-key-signup_brand .signup-feature-list{{margin-top:48px;padding-top:23px;border-top:1px solid #ffffff35;color:#e7f5f1!important;font-size:13px;line-height:2.6}}
     .st-key-signup_brand .signup-foot{{font-size:10px;letter-spacing:1.5px;color:#9bb9b8!important;margin-top:38px}}
-    .st-key-signup_form{{min-height:690px!important;padding:3.2rem 3.4rem!important;background:linear-gradient(145deg,#fff,#f9fcfb)!important;justify-content:center!important}}
+    .st-key-signup_form{{min-height:780px!important;height:100%!important;padding:3.2rem 3.4rem!important;background:linear-gradient(145deg,#fff,#f9fcfb)!important;justify-content:center!important}}
     .st-key-signup_form .signup-kicker{{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;font-weight:900;color:#078c70!important}}
     .st-key-signup_form .signup-title{{font-size:35px;line-height:1.16;letter-spacing:-1.4px;font-weight:850;color:#112333!important;margin:13px 0 10px}}
     .st-key-signup_form .signup-subtitle{{font-size:14px;line-height:1.7;color:#78889a!important;margin-bottom:26px}}
