@@ -263,7 +263,11 @@ with st.sidebar:
         st.caption(st.session_state.user.get("email","Business User"));items=[("Dashboard","dashboard"),("Product Analysis","product"),("Demand Forecasting","forecast"),("Dynamic Pricing","pricing"),("Market Insights","market"),("Product Comparison","compare"),("AI Simulator","simulator"),("Alerts & Risk","alerts"),("AI Decision Copilot","copilot"),("Saved Analyses","saved"),("Settings","settings")]
         for label,target in items:
             if st.button(label,use_container_width=True,key="nav_"+target):st.session_state.page=target;st.rerun()
-        if st.button("Sign out",use_container_width=True,key="signout"):st.session_state.user=None;st.session_state.page="welcomif st.session_state.page=="welcome":
+        if st.button("Sign out",use_container_width=True,key="signout"):
+            st.session_state.user=None
+            st.session_state.page="welcome"
+            st.rerun()
+if st.session_state.page=="welcome":
     # Read the uploaded background image from the repository's assets folder.
     try:
         with open("assets/optiretail_welcome_bg.png","rb") as bg_file:
