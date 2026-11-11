@@ -270,7 +270,7 @@ with st.sidebar:
 if st.session_state.page=="welcome":
     # Read the uploaded background image from the repository's assets folder.
     try:
-        with open("assets/optiretail_welcome_bg.png","rb") as bg_file:
+        with open("assets/ optiretail_welcome_bg.png","rb") as bg_file:
             welcome_bg=base64.b64encode(bg_file.read()).decode("utf-8")
     except Exception:
         welcome_bg=""
@@ -454,7 +454,7 @@ elif st.session_state.page=="login":
 elif st.session_state.page=="signup":
     # Signup page uses the same visual language as the welcome and login pages.
     try:
-        with open("assets/optiretail_welcome_bg.png","rb") as bg_file:
+        with open("assets/ optiretail_welcome_bg.png","rb") as bg_file:
             signup_bg=base64.b64encode(bg_file.read()).decode("utf-8")
     except Exception:
         signup_bg=""
