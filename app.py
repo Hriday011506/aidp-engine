@@ -452,15 +452,92 @@ elif st.session_state.page=="login":
         st.session_state.page="welcome"
         st.rerun()
 elif st.session_state.page=="signup":
-    st.markdown("<div class='auth'><div class='auth-card'><div class='eyebrow'>BUSINESS ONBOARDING</div><h1 class='auth-title'>Create your OptiRetail AI workspace</h1><p class='auth-sub'>Presentation-ready account with session storage.</p>",unsafe_allow_html=True)
-    with st.form("signup_form"):email=st.text_input("Email address");password=st.text_input("Password",type="password");gst=st.text_input("GST Number");turnover=st.selectbox("Annual Turnover",["1–5 Lakh","5–10 Lakh","10–15 Lakh","15–50 Lakh","50 Lakh+"]);submit=st.form_submit_button("Create account",use_container_width=True)
-    if submit:
-        if not email or "@" not in email or not password or not gst:st.error("Please enter a valid email, password and GST number.")
-        else:
-            ok,message=signup(email,password,gst,turnover)
-            if ok:st.success(message);st.session_state.page="login";st.rerun()
-            else:st.error(message)
-    st.markdown("</div></div>",unsafe_allow_html=True)
+    # Signup page uses the same visual language as the welcome and login pages.
+    try:
+        with open("assets/optiretail_welcome_bg.png","rb") as bg_file:
+            signup_bg=base64.b64encode(bg_file.read()).decode("utf-8")
+    except Exception:
+        signup_bg=""
+
+    st.markdown(f"""
+    <style>
+    [data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"]{{display:none!important}}
+    [data-testid="stAppViewContainer"],.stApp{{background:#f3f6f8!important}}
+    header[data-testid="stHeader"]{{background:transparent!important}}
+    .block-container{{max-width:1450px!important;padding:2.3rem 2rem 2rem!important}}
+    .st-key-signup_shell{{background:#fff!important;border:1px solid #e1e9e8!important;border-radius:28px!important;overflow:hidden!important;box-shadow:0 24px 75px rgba(15,35,48,.10)!important;padding:0!important}}
+    .st-key-signup_shell [data-testid="stHorizontalBlock"]{{gap:0!important;align-items:stretch!important}}
+    .st-key-signup_brand{{min-height:690px!important;padding:3.5rem 3rem!important;background-color:#06252d!important;background-image:linear-gradient(145deg,rgba(3,25,34,.32),rgba(3,55,53,.50)),url("data:image/png;base64,{signup_bg}")!important;background-size:cover!important;background-position:center!important;justify-content:space-between!important}}
+    .st-key-signup_brand .signup-brandname{{font-size:21px;font-weight:850;letter-spacing:-.5px;color:#fff!important}}
+    .st-key-signup_brand .signup-brandname span{{color:#56e3b8!important}}
+    .st-key-signup_brand .signup-overline{{font-size:10px;letter-spacing:2.8px;text-transform:uppercase;font-weight:900;color:#6ce6c4!important;margin-top:100px}}
+    .st-key-signup_brand .signup-headline{{font-size:47px;line-height:1.1;letter-spacing:-1.8px;font-weight:850;color:#fff!important;margin:20px 0}}
+    .st-key-signup_brand .signup-copy{{font-size:15px;line-height:1.85;color:#d0e3e3!important;max-width:430px}}
+    .st-key-signup_brand .signup-feature-list{{margin-top:48px;padding-top:23px;border-top:1px solid #ffffff35;color:#e7f5f1!important;font-size:13px;line-height:2.6}}
+    .st-key-signup_brand .signup-foot{{font-size:10px;letter-spacing:1.5px;color:#9bb9b8!important;margin-top:38px}}
+    .st-key-signup_form{{min-height:690px!important;padding:3.2rem 3.4rem!important;background:linear-gradient(145deg,#fff,#f9fcfb)!important;justify-content:center!important}}
+    .st-key-signup_form .signup-kicker{{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;font-weight:900;color:#078c70!important}}
+    .st-key-signup_form .signup-title{{font-size:35px;line-height:1.16;letter-spacing:-1.4px;font-weight:850;color:#112333!important;margin:13px 0 10px}}
+    .st-key-signup_form .signup-subtitle{{font-size:14px;line-height:1.7;color:#78889a!important;margin-bottom:26px}}
+    .st-key-signup_form [data-testid="stWidgetLabel"] p{{font-size:12px!important;font-weight:750!important;color:#344456!important}}
+    .st-key-signup_form [data-testid="stTextInput"] input,.st-key-signup_form [data-testid="stSelectbox"] div[data-baseweb="select"]>div{{min-height:48px!important;border:1px solid #d9e5e3!important;border-radius:10px!important;background:#fff!important;color:#172538!important;box-shadow:none!important}}
+    .st-key-signup_form [data-testid="stTextInput"] input:focus{{border-color:#159b81!important;box-shadow:0 0 0 3px #159b8118!important}}
+    .st-key-signup_form [data-testid="stFormSubmitButton"] button{{height:51px!important;border:0!important;border-radius:11px!important;background:#087e68!important;color:#fff!important;font-size:14px!important;font-weight:800!important;box-shadow:0 8px 18px #087e6825!important}}
+    .st-key-signup_form [data-testid="stFormSubmitButton"] button:hover{{background:#066b59!important;transform:translateY(-1px)}}
+    .st-key-signup_form [data-testid="stButton"] button{{height:43px!important;background:#fff!important;border:1px solid #dce6e6!important;color:#087e68!important;border-radius:10px!important;font-weight:750!important}}
+    @media(max-width:900px){{
+      .block-container{{padding:1rem .7rem!important}}
+      .st-key-signup_shell [data-testid="stHorizontalBlock"]{{flex-wrap:wrap!important}}
+      .st-key-signup_shell [data-testid="column"]{{min-width:100%!important}}
+      .st-key-signup_brand{{min-height:430px!important;padding:2.4rem 1.8rem!important}}
+      .st-key-signup_brand .signup-overline{{margin-top:45px}}
+      .st-key-signup_brand .signup-headline{{font-size:36px}}
+      .st-key-signup_form{{min-height:auto!important;padding:2.5rem 1.8rem!important}}
+      .st-key-signup_form .signup-title{{font-size:30px}}
+    }}
+    </style>
+    """,unsafe_allow_html=True)
+
+    with st.container(key="signup_shell"):
+        brand_col,form_col=st.columns([0.9,1.1],gap=None)
+        with brand_col:
+            with st.container(key="signup_brand"):
+                st.markdown("""
+                <div class="signup-brandname">◇ &nbsp; OptiRetail <span>AI</span></div>
+                <div class="signup-overline">Business workspace onboarding</div>
+                <div class="signup-headline">Build a smarter<br>retail operation.</div>
+                <div class="signup-copy">Create your workspace to explore demand forecasts, market-aware pricing insights, and inventory planning in one place.</div>
+                <div class="signup-feature-list">↗ &nbsp; Understand product demand<br>↗ &nbsp; Make informed pricing decisions<br>↗ &nbsp; Plan inventory with confidence</div>
+                <div class="signup-foot">OPTIRETAIL AI &nbsp; / &nbsp; SMARTER DECISIONS · STRONGER RETAIL</div>
+                """,unsafe_allow_html=True)
+        with form_col:
+            with st.container(key="signup_form"):
+                st.markdown("""
+                <div class="signup-kicker">Create your account</div>
+                <div class="signup-title">Set up your workspace.</div>
+                <div class="signup-subtitle">Enter your business details to get started with OptiRetail AI.</div>
+                """,unsafe_allow_html=True)
+                with st.form("signup_form"):
+                    email=st.text_input("Email address",placeholder="you@company.com")
+                    password=st.text_input("Password",type="password",placeholder="Create a secure password")
+                    gst=st.text_input("GST Number",placeholder="Enter your GSTIN")
+                    turnover=st.selectbox("Annual Turnover",["1–5 Lakh","5–10 Lakh","10–15 Lakh","15–50 Lakh","50 Lakh+"])
+                    submit=st.form_submit_button("Create account  →",use_container_width=True)
+                if submit:
+                    if not email or "@" not in email or not password or not gst:
+                        st.error("Please enter a valid email, password and GST number.")
+                    else:
+                        ok,message=signup(email,password,gst,turnover)
+                        if ok:
+                            st.success(message)
+                            st.session_state.page="login"
+                            st.rerun()
+                        else:
+                            st.error(message)
+                st.caption("Already have an account?")
+                if st.button("Back to log in",key="signup_back_login",use_container_width=True):
+                    st.session_state.page="login"
+                    st.rerun()
 elif st.session_state.user:
     if st.session_state.page=="dashboard":header("DASHBOARD","Turn market data into <span>smarter decisions.</span>","AI Action Center, health score, explainable forecast and simulator.");dashboard()
     elif st.session_state.page=="product":product_page()
