@@ -351,8 +351,14 @@ if st.session_state.page=="welcome":
                 st.markdown('<div class="welcome-foot">SMARTER DECISIONS · STRONGER RETAIL</div>',unsafe_allow_html=True)
 elif st.session_state.page=="login":
     # Deployment refresh: login reference layout
-    # Login layout recreated from the supplied visual reference.
-    st.markdown("""
+    # Login page shares the same branded split layout as the signup page.
+    try:
+        with open("assets/ optiretail_welcome_bg.png","rb") as bg_file:
+            login_bg=base64.b64encode(bg_file.read()).decode("utf-8")
+    except Exception:
+        login_bg=""
+
+    st.markdown(f"""
     <style>
     [data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"]{display:none!important}
     [data-testid="stAppViewContainer"],.stApp{background:#f4f6f9!important}
@@ -360,7 +366,7 @@ elif st.session_state.page=="login":
     .block-container{max-width:1500px!important;padding:2.7rem 2.8rem 2rem!important}
     .st-key-login_layout{background:#fff!important;border:1px solid #e3e9ef!important;border-radius:30px!important;overflow:hidden!important;box-shadow:0 24px 80px rgba(20,35,55,.10)!important;padding:0!important}
     .st-key-login_layout [data-testid="stHorizontalBlock"]{gap:0!important;align-items:stretch!important}
-    .st-key-login_form_panel{background:#fff!important;padding:4.4rem 4.1rem 3.2rem!important;min-height:690px!important;justify-content:center!important}
+    .st-key-login_form_panel{background:#fff!important;padding:4.4rem 4.1rem 3.2rem!important;min-height:780px!important;height:100%!important;justify-content:center!important}
     .st-key-login_form_panel .login-brand{display:flex;align-items:center;gap:11px;font-size:19px;font-weight:850;letter-spacing:-.6px;color:#142033!important;margin-bottom:78px}
     .st-key-login_form_panel .login-brand .brand-icon{height:38px;width:38px;border-radius:12px;background:#07866e;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 7px 16px #07866e30}
     .st-key-login_form_panel .login-brand .brand-ai{color:#07866e!important}
@@ -375,9 +381,9 @@ elif st.session_state.page=="login":
     .st-key-login_form_panel [data-testid="stButton"] button{height:45px!important;background:#fff!important;border:1px solid #dce6e6!important;color:#087e68!important;border-radius:10px!important;font-weight:750!important}
     .st-key-login_form_panel [data-testid="stCaptionContainer"] p{font-size:12px!important;color:#77869a!important}
     .st-key-login_form_panel [data-testid="stAlert"]{border-radius:10px!important}
-    .st-key-login_promo{position:relative!important;overflow:hidden!important;isolation:isolate!important;min-height:690px!important;padding:4.1rem 3.3rem 3rem!important;background:radial-gradient(ellipse at 82% 22%,rgba(13,128,112,.48),transparent 38%),linear-gradient(145deg,#071725 0%,#082b36 56%,#063b3b 100%)!important}
-    .st-key-login_promo:before{content:"";position:absolute;inset:0;z-index:-1;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(180deg,#000 0%,transparent 100%)}
-    .st-key-login_promo:after{content:"";position:absolute;z-index:-1;width:430px;height:430px;right:-150px;top:115px;border:1px solid rgba(150,226,215,.13);border-radius:50%;box-shadow:0 0 0 38px rgba(150,226,215,.035),0 0 0 78px rgba(150,226,215,.025),0 0 0 118px rgba(150,226,215,.018)}
+    .st-key-login_promo{position:relative!important;overflow:hidden!important;isolation:isolate!important;min-height:780px!important;height:100%!important;padding:4.1rem 3.3rem 3rem!important;background-color:#06252d!important;background-image:linear-gradient(145deg,rgba(3,25,34,.32),rgba(3,55,53,.50)),url("data:image/png;base64,{login_bg}")!important;background-size:cover!important;background-position:center center!important;background-repeat:no-repeat!important}
+    
+    
     .st-key-login_promo .promo-brand{font-size:19px;font-weight:850;letter-spacing:-.6px;color:#fff!important}
     .st-key-login_promo .promo-brand span{color:#69e0bc!important}
     .st-key-login_promo .promo-overline{font-size:10px;letter-spacing:3px;font-weight:900;color:#77d8c2!important;text-transform:uppercase;margin-top:112px}
@@ -398,7 +404,7 @@ elif st.session_state.page=="login":
       .st-key-login_form_panel{min-height:auto!important;padding:2.3rem 1.7rem!important}
       .st-key-login_form_panel .login-brand{margin-bottom:42px}
       .st-key-login_form_panel .login-title{font-size:32px}
-      .st-key-login_promo{min-height:auto!important;padding:2.5rem 1.7rem!important}
+      .st-key-login_promo{min-height:520px!important;height:auto!important;padding:2.5rem 1.7rem!important;background-position:center center!important}
       .st-key-login_promo .promo-overline{margin-top:52px}
       .st-key-login_promo .promo-headline{font-size:36px}
       .st-key-login_promo .promo-divider{margin:28px 0 15px}
