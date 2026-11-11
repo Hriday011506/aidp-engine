@@ -272,6 +272,7 @@ if st.session_state.page=="welcome":
     with y:
         if st.button("Sign in",use_container_width=True,key="home_login"):st.session_state.page="login";st.rerun()
 elif st.session_state.page=="login":
+    # Deployment refresh: login reference layout
     # Login layout recreated from the supplied visual reference.
     st.markdown("""
     <style>
