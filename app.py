@@ -1,3 +1,4 @@
+import base64
 import calendar
 import datetime as dt
 import hashlib
@@ -262,15 +263,89 @@ with st.sidebar:
         st.caption(st.session_state.user.get("email","Business User"));items=[("Dashboard","dashboard"),("Product Analysis","product"),("Demand Forecasting","forecast"),("Dynamic Pricing","pricing"),("Market Insights","market"),("Product Comparison","compare"),("AI Simulator","simulator"),("Alerts & Risk","alerts"),("AI Decision Copilot","copilot"),("Saved Analyses","saved"),("Settings","settings")]
         for label,target in items:
             if st.button(label,use_container_width=True,key="nav_"+target):st.session_state.page=target;st.rerun()
-        if st.button("Sign out",use_container_width=True,key="signout"):st.session_state.user=None;st.session_state.page="welcome";st.rerun()
-if st.session_state.page=="welcome":
-    header("OPTIRETAIL AI","Turn market data into <span>smarter decisions.</span>","Forecast demand, use live web market intelligence, simulate scenarios, detect risks and explain AI recommendations.");a,b,c,d=st.columns(4)
-    for col,title,desc in zip([a,b,c,d],["Predict","Decide","Simulate","Explain"],["12-month demand forecast","AI Action Center","What-if scenarios","Confidence and drivers"]):col.markdown(f"<div class='card'><div class='eyebrow'>AI</div><h3>{title}</h3><p class='small'>{desc}</p></div>",unsafe_allow_html=True)
-    x,y=st.columns(2)
-    with x:
-        if st.button("Get Started →",use_container_width=True,key="start"):st.session_state.page="signup";st.rerun()
-    with y:
-        if st.button("Sign in",use_container_width=True,key="home_login"):st.session_state.page="login";st.rerun()
+        if st.button("Sign out",use_container_width=True,key="signout"):st.session_state.user=None;st.session_state.page="welcomif st.session_state.page=="welcome":
+    # Read the uploaded background image from the repository's assets folder.
+    try:
+        with open("assets/optiretail_welcome_bg.png","rb") as bg_file:
+            welcome_bg=base64.b64encode(bg_file.read()).decode("utf-8")
+    except Exception:
+        welcome_bg=""
+
+    st.markdown(f"""
+    <style>
+    [data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"]{{display:none!important}}
+    [data-testid="stAppViewContainer"],.stApp{{background:#061d25!important}}
+    header[data-testid="stHeader"]{{background:transparent!important}}
+    .block-container{{max-width:1500px!important;padding:2.2rem 2rem 2.5rem!important}}
+    .st-key-welcome_layout{{border:1px solid rgba(103,232,205,.25)!important;border-radius:28px!important;overflow:hidden!important;background:#061d25!important;box-shadow:0 28px 80px rgba(0,0,0,.28)!important;padding:0!important}}
+    .st-key-welcome_layout [data-testid="stHorizontalBlock"]{{gap:0!important;align-items:stretch!important}}
+    .st-key-welcome_left{{min-height:690px!important;padding:3.5rem 3rem!important;background-color:#06242c!important;background-image:linear-gradient(90deg,rgba(3,25,34,.22),rgba(3,25,34,.10)),url("data:image/png;base64,{welcome_bg}")!important;background-size:cover!important;background-position:center!important;justify-content:center!important}}
+    .st-key-welcome_left .welcome-brand{{font-size:20px;font-weight:850;letter-spacing:-.5px;color:#fff!important;margin-bottom:82px}}
+    .st-key-welcome_left .welcome-brand span{{color:#42e2b1!important}}
+    .st-key-welcome_left .welcome-kicker{{font-size:10px;letter-spacing:3px;font-weight:900;text-transform:uppercase;color:#46e4bd!important;margin-bottom:20px}}
+    .st-key-welcome_left .welcome-headline{{font-size:clamp(35px,3.4vw,53px);line-height:1.08;letter-spacing:-2.2px;font-weight:850;color:#fff!important;margin:0 0 22px;max-width:650px}}
+    .st-key-welcome_left .welcome-headline span{{color:#42e2b1!important}}
+    .st-key-welcome_left .welcome-copy{{font-size:15px;line-height:1.85;color:#d0e0e3!important;max-width:550px}}
+    .st-key-welcome_left .welcome-features{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:54px;max-width:650px}}
+    .st-key-welcome_left .welcome-feature{{padding:15px 10px 13px;border:1px solid rgba(65,224,185,.25);border-radius:14px;background:rgba(3,44,49,.62);text-align:center;backdrop-filter:blur(8px)}}
+    .st-key-welcome_left .feature-icon{{font-size:22px;color:#38e0b1!important;margin-bottom:8px}}
+    .st-key-welcome_left .feature-label{{font-size:11px;line-height:1.4;font-weight:750;color:#f0fffb!important}}
+    .st-key-welcome_right{{min-height:690px!important;padding:4rem 3.2rem!important;background:linear-gradient(145deg,#fff 0%,#f8fbfa 100%)!important;justify-content:center!important}}
+    .st-key-welcome_right .welcome-right-kicker{{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;font-weight:900;color:#079b79!important;text-align:center}}
+    .st-key-welcome_right .welcome-right-title{{font-size:38px;line-height:1.15;letter-spacing:-1.5px;font-weight:850;color:#102331!important;text-align:center;margin:14px 0 10px}}
+    .st-key-welcome_right .welcome-right-title span{{color:#08a77e!important}}
+    .st-key-welcome_right .welcome-right-copy{{font-size:14px;color:#718096!important;text-align:center;margin-bottom:42px}}
+    .st-key-welcome_right [data-testid="stButton"] button{{height:86px!important;border-radius:15px!important;text-align:left!important;padding:0 23px!important;font-size:17px!important;font-weight:800!important;white-space:normal!important;box-shadow:0 8px 22px rgba(15,23,42,.06)!important;transition:all .18s ease!important}}
+    .st-key-welcome_right [data-testid="stButton"]:first-of-type button{{background:linear-gradient(110deg,#e9fbf5,#f7fdfa)!important;border:1px solid #70e0bd!important;color:#102d35!important}}
+    .st-key-welcome_right [data-testid="stButton"]:last-of-type button{{background:#fff!important;border:1px solid #dce6e8!important;color:#102d35!important}}
+    .st-key-welcome_right [data-testid="stButton"] button:hover{{transform:translateY(-2px)!important;border-color:#0ab184!important;box-shadow:0 12px 26px rgba(8,167,126,.12)!important}}
+    .st-key-welcome_right .welcome-foot{{font-size:10px;letter-spacing:1.5px;color:#9aa9ad!important;text-align:center;margin-top:42px}}
+    @media(max-width:900px){{
+      .block-container{{padding:1rem .7rem!important}}
+      .st-key-welcome_layout [data-testid="stHorizontalBlock"]{{flex-wrap:wrap!important}}
+      .st-key-welcome_layout [data-testid="column"]{{min-width:100%!important}}
+      .st-key-welcome_left{{min-height:580px!important;padding:2.5rem 1.8rem!important}}
+      .st-key-welcome_left .welcome-brand{{margin-bottom:50px}}
+      .st-key-welcome_left .welcome-headline{{font-size:38px}}
+      .st-key-welcome_left .welcome-features{{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:35px}}
+      .st-key-welcome_right{{min-height:470px!important;padding:2.5rem 1.8rem!important}}
+      .st-key-welcome_right .welcome-right-title{{font-size:32px}}
+    }}
+    </style>
+    """,unsafe_allow_html=True)
+
+    with st.container(key="welcome_layout"):
+        left,right=st.columns([1.12,0.88],gap=None)
+        with left:
+            with st.container(key="welcome_left"):
+                st.markdown("""
+                <div class="welcome-brand">◇ &nbsp; OptiRetail <span>AI</span></div>
+                <div class="welcome-kicker">Intelligence for modern retail</div>
+                <div class="welcome-headline">Turn market data into<br><span>retail intelligence.</span></div>
+                <div class="welcome-copy">An AI-powered platform for demand forecasting, dynamic pricing, and inventory optimization. Make confident decisions with a clearer view of your retail operations.</div>
+                <div class="welcome-features">
+                  <div class="welcome-feature"><div class="feature-icon">⌁</div><div class="feature-label">Demand<br>Forecasting</div></div>
+                  <div class="welcome-feature"><div class="feature-icon">◇</div><div class="feature-label">Dynamic<br>Pricing</div></div>
+                  <div class="welcome-feature"><div class="feature-icon">▱</div><div class="feature-label">Inventory<br>Planning</div></div>
+                  <div class="welcome-feature"><div class="feature-icon">▥</div><div class="feature-label">Market<br>Insights</div></div>
+                </div>
+                """,unsafe_allow_html=True)
+        with right:
+            with st.container(key="welcome_right"):
+                st.markdown("""
+                <div class="welcome-right-kicker">Welcome to</div>
+                <div class="welcome-right-title">OptiRetail <span>AI</span></div>
+                <div class="welcome-right-copy">Choose an option to get started</div>
+                """,unsafe_allow_html=True)
+                if st.button("♙   Log In                                      →",use_container_width=True,key="home_login"):
+                    st.session_state.page="login"
+                    st.rerun()
+                st.markdown("<div style='height:14px'></div>",unsafe_allow_html=True)
+                if st.button("♧   Sign Up                                    →",use_container_width=True,key="start"):
+                    st.session_state.page="signup"
+                    st.rerun()
+                st.markdown('<div class="welcome-foot">SMARTER DECISIONS · STRONGER RETAIL</div>',unsafe_allow_html=True)
+n";st.rerun()
 elif st.session_state.page=="login":
     # Deployment refresh: login reference layout
     # Login layout recreated from the supplied visual reference.
