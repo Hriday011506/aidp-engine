@@ -20,7 +20,7 @@ except ImportError:
 
 st.set_page_config(page_title="OptiRetail AI", page_icon="🛒", layout="wide", initial_sidebar_state="expanded")
 MONTHS = list(calendar.month_name)[1:]
-DEFAULTS = {"user": None, "users": {}, "page": "welcome", "product": "Wheat Flour", "city": "Jaipur", "month": dt.datetime.now().strftime("%B"), "prediction": None, "forecast": None, "price": None, "price_source": None, "saved": []}
+DEFAULTS = {"user": None, "users": {}, "page": "welcome", "product": "Wheat Flour", "city": "Jaipur", "month": dt.datetime.now().strftime("%B"), "prediction": None, "forecast": None, "price": None, "price_source": None, "mrp": 0.0, "saved": []}
 for k,v in DEFAULTS.items(): st.session_state.setdefault(k,v)
 
 st.markdown("""
@@ -138,10 +138,13 @@ def _mrp_for_product(product):
 
 def generate():
     market=st.session_state.price
-    if market is None:return False
+    mrp=float(st.session_state.get("mrp",0) or 0)
+    if market is None or mrp <= 0:return False
     table,city,weather_source,social_source=make_forecast(st.session_state.product,st.session_state.city);row=table.loc[table.Month==st.session_state.month].iloc[0];pred=float(row["Forecast demand"]);temp=float(row["Temperature (°C)"]);holiday=int(row["Holiday days"]);trend_score=int(row["Trend score"]);social_score=int(row["Social Viral Score"])
-    demand_factor=float(np.clip((pred-700)/5000,-0.045,0.045));weather_factor=float(np.clip((temp-27)/250,-0.025,0.025));holiday_factor=float(np.clip(holiday/600,-0.012,0.012));trend_factor=float(np.clip((trend_score-60)/3000,-0.015,0.015));social_factor=float(np.clip((social_score-60)/1800,-0.025,0.025));adjustment=float(np.clip(demand_factor+weather_factor+holiday_factor+trend_factor+social_factor,-0.08,0.08));base=market*(1+adjustment);mrp=_mrp_for_product(st.session_state.product);suggested=round(min(base,mrp),2) if mrp is not None else round(base,2)
-    p={"product":st.session_state.product,"city":city,"month":st.session_state.month,"pred":pred,"stock":float(np.ceil(pred*1.1)),"temp":temp,"holiday":holiday,"trend":trend_score,"social":social_score,"market":float(market),"suggested":suggested,"source":weather_source,"social_source":social_source,"confidence":int(np.clip(68+abs(trend_score-60)*.18+abs(social_score-60)*.10,68,95))};st.session_state.forecast=table;st.session_state.prediction=p;st.session_state.saved.insert(0,p.copy());st.session_state.saved=st.session_state.saved[:20];return True
+    demand_factor=float(np.clip((pred-700)/5000,-0.045,0.045));weather_factor=float(np.clip((temp-27)/250,-0.025,0.025));holiday_factor=float(np.clip(holiday/600,-0.012,0.012));trend_factor=float(np.clip((trend_score-60)/3000,-0.015,0.015));social_factor=float(np.clip((social_score-60)/1800,-0.025,0.025));adjustment=float(np.clip(demand_factor+weather_factor+holiday_factor+trend_factor+social_factor,-0.08,0.08));base=market*(1+adjustment)
+    # Retail selling price is capped at MRP. Floor to paise so rounding can never breach the cap.
+    suggested=float(np.floor(min(base,mrp)*100)/100)
+    p={"product":st.session_state.product,"city":city,"month":st.session_state.month,"pred":pred,"stock":float(np.ceil(pred*1.1)),"temp":temp,"holiday":holiday,"trend":trend_score,"social":social_score,"market":float(market),"mrp":mrp,"suggested":suggested,"source":weather_source,"social_source":social_source,"confidence":int(np.clip(68+abs(trend_score-60)*.18+abs(social_score-60)*.10,68,95))};st.session_state.forecast=table;st.session_state.prediction=p;st.session_state.saved.insert(0,p.copy());st.session_state.saved=st.session_state.saved[:20];return True
 
 def normalize_prediction(p):
     if not isinstance(p,dict):return None
@@ -172,8 +175,18 @@ def inputs():
     with a:product=st.text_input("Product",value=st.session_state.product,key="product_input")
     with b:city=st.text_input("City",value=st.session_state.city,key="city_input")
     with c:month=st.selectbox("Forecast month",MONTHS,index=MONTHS.index(st.session_state.month) if st.session_state.month in MONTHS else 0,key="month_input")
-    product=product.strip() or "Wheat Flour";city=city.strip() or "Jaipur";old=st.session_state.prediction;changed=bool(old) and (old.get("product")!=product or old.get("city")!=city or old.get("month")!=month);st.session_state.product,st.session_state.city,st.session_state.month=product,city,month
-    if changed:st.session_state.prediction=None;st.session_state.forecast=None;st.session_state.price=None;st.session_state.price_source=None
+    product=product.strip() or "Wheat Flour";city=city.strip() or "Jaipur";old=st.session_state.prediction;changed=bool(old) and (old.get("product")!=product or old.get("city")!=city or old.get("month")!=month)
+    if changed:
+        st.session_state.prediction=None;st.session_state.forecast=None;st.session_state.price=None;st.session_state.price_source=None
+        st.session_state.mrp=float(_mrp_for_product(product) or 0)
+    st.session_state.product,st.session_state.city,st.session_state.month=product,city,month
+    known_mrp=_mrp_for_product(product)
+    if "mrp_input" not in st.session_state:
+        st.session_state.mrp_input=float(st.session_state.get("mrp") or known_mrp or 0)
+    elif changed:
+        st.session_state.mrp_input=float(known_mrp or 0)
+    mrp_value=st.number_input("Product MRP (₹) — mandatory price ceiling",min_value=0.0,value=float(st.session_state.mrp_input),step=1.0,format="%.2f",key="mrp_input",help="Enter the printed Maximum Retail Price. OptiRetail will never recommend a selling price above this amount.")
+    st.session_state.mrp=float(mrp_value)
     x,y=st.columns(2)
     with x:
         if st.button("Refresh live market price",use_container_width=True,key="price_button"):
@@ -183,8 +196,9 @@ def inputs():
     with y:
         if st.button("Generate AI Decision →",use_container_width=True,key="generate_button"):
             if st.session_state.price is None:st.error("Refresh the market price first. A market reference is required for an AI decision.")
-            elif generate():st.success("AI decision generated successfully.")
-    if st.session_state.price is not None:st.markdown(f"<div style='background:#dcfce7;border-radius:12px;padding:14px 18px;color:#047857;font-weight:800'>Market reference: ₹{st.session_state.price:,.2f} · {html.escape(str(st.session_state.price_source or 'Live web market data'))}</div>",unsafe_allow_html=True)
+            elif float(st.session_state.get("mrp",0) or 0) <= 0:st.error("Enter a valid product MRP before generating a pricing recommendation.")
+            elif generate():st.success("AI decision generated successfully. The suggested price is capped at or below MRP.")
+    if st.session_state.price is not None:st.markdown(f"<div style='background:#dcfce7;border-radius:12px;padding:14px 18px;color:#047857;font-weight:800'>Market reference: ₹{st.session_state.price:,.2f} · MRP ceiling: ₹{st.session_state.mrp:,.2f} · {html.escape(str(st.session_state.price_source or 'Live web market data'))}</div>",unsafe_allow_html=True)
     st.markdown("</div>",unsafe_allow_html=True)
 def simulator():
     p=normalize_prediction(st.session_state.prediction)
@@ -227,7 +241,10 @@ def forecast_page():
 def pricing_page():
     header("DYNAMIC PRICING","Price with <span>market awareness.</span>","Compare the market reference with the demand-aware recommendation.");p=normalize_prediction(st.session_state.prediction)
     if not p:st.info("Generate a decision first.");return
-    a,b,c=st.columns(3);a.metric("Market reference",f"₹{p['market']:,.2f}");b.metric("Suggested price",f"₹{p['suggested']:,.2f}");c.metric("Difference",f"{((p['suggested']/p['market'])-1)*100:+.1f}%");st.markdown(f"<div class='decision'><h3>Pricing rationale</h3><p>Recommendation uses the market reference of ₹{p['market']:,.2f}, demand forecast of {int(p['pred']):,} units, temperature of {p['temp']:.1f} °C, {p['holiday']} holiday days and a Social Viral Score of {p.get('social',50)}/100.</p></div>",unsafe_allow_html=True)
+    a,b,c,d=st.columns(4);a.metric("Market reference",f"₹{p['market']:,.2f}");b.metric("Product MRP",f"₹{p.get('mrp',_mrp_for_product(p['product']) or 0):,.2f}");c.metric("Suggested price",f"₹{p['suggested']:,.2f}");d.metric("Difference vs market",f"{((p['suggested']/p['market'])-1)*100:+.1f}%")
+    mrp_cap=float(p.get("mrp",_mrp_for_product(p["product"]) or 0))
+    if mrp_cap and p["suggested"] <= mrp_cap:st.success("MRP compliance check passed: recommended selling price is not above MRP.")
+    st.markdown(f"<div class='decision'><h3>Pricing rationale</h3><p>Recommendation uses the market reference of ₹{p['market']:,.2f}, MRP ceiling of ₹{mrp_cap:,.2f}, demand forecast of {int(p['pred']):,} units, temperature of {p['temp']:.1f} °C, {p['holiday']} holiday days and a Social Viral Score of {p.get('social',50)}/100.</p></div>",unsafe_allow_html=True)
 def compare_page():
     header("PRODUCT COMPARISON","Compare products with <span>one model.</span>","Compare expected demand, peak month and inventory requirement.");a,b,c=st.columns(3)
     with a:p1=st.text_input("Product 1",value=st.session_state.product,key="cmp1")
