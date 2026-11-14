@@ -15,6 +15,7 @@ from src.enterprise_inventory import demo_inventory, calculate_inventory_positio
 from src.seasonal_pricing import classify_product, seasonal_demand_multiplier, explain_seasonality, pricing_adjustment
 from src.price_elasticity import estimate_elasticity, optimize_price
 from src.inventory_economics import optimize_price_with_inventory
+from src.mongo_store import save_prediction, latest_prediction, load_inventory, replace_inventory, load_sales_history, get_database
 
 try:
     import holidays
@@ -150,7 +151,10 @@ def generate():
     suggested,weather_price_adjustment=pricing_adjustment(base,seasonality,category,mrp)
     # Inventory holding recommendation follows the same seasonally adjusted demand forecast.
     stock=float(np.ceil(pred*1.10))
-    p={"product":st.session_state.product,"category":category,"seasonality":seasonality,"seasonality_explanation":explain_seasonality(category,temp,seasonality),"weather_price_adjustment":weather_price_adjustment,"pred":pred,"stock":stock,"temp":temp,"holiday":holiday,"trend":trend_score,"social":social_score,"market":float(market),"mrp":mrp,"suggested":suggested,"source":weather_source,"social_source":social_source,"confidence":int(np.clip(68+abs(trend_score-60)*.18+abs(social_score-60)*.10,68,95))};st.session_state.forecast=table;st.session_state.prediction=p;st.session_state.saved.insert(0,p.copy());st.session_state.saved=st.session_state.saved[:20];return True
+    p={"product":st.session_state.product,"category":category,"seasonality":seasonality,"seasonality_explanation":explain_seasonality(category,temp,seasonality),"weather_price_adjustment":weather_price_adjustment,"pred":pred,"stock":stock,"temp":temp,"holiday":holiday,"trend":trend_score,"social":social_score,"market":float(market),"mrp":mrp,"suggested":suggested,"source":weather_source,"social_source":social_source,"confidence":int(np.clip(68+abs(trend_score-60)*.18+abs(social_score-60)*.10,68,95))};st.session_state.forecast=table;st.session_state.prediction=p;st.session_state.saved.insert(0,p.copy());st.session_state.saved=st.session_state.saved[:20]
+    saved_ok,saved_message=save_prediction(st.secrets,p)
+    st.session_state.mongo_save_message=saved_message
+    return True
 
 def normalize_prediction(p):
     if not isinstance(p,dict):return None
@@ -205,6 +209,7 @@ def inputs():
             elif float(st.session_state.get("mrp",0) or 0) <= 0:st.error("Enter a valid product MRP before generating a pricing recommendation.")
             elif generate():st.success("AI decision generated successfully. The suggested price is capped at or below MRP.")
     if st.session_state.price is not None:st.markdown(f"<div style='background:#dcfce7;border-radius:12px;padding:14px 18px;color:#047857;font-weight:800'>Market reference: ₹{st.session_state.price:,.2f} · MRP ceiling: ₹{st.session_state.mrp:,.2f} · {html.escape(str(st.session_state.price_source or 'Live web market data'))}</div>",unsafe_allow_html=True)
+    if st.session_state.get("mongo_save_message"):st.caption(st.session_state.mongo_save_message)
     st.markdown("</div>",unsafe_allow_html=True)
 def simulator():
     p=normalize_prediction(st.session_state.prediction)
@@ -245,8 +250,22 @@ def forecast_page():
     if not p or st.session_state.forecast is None:st.info("Generate a decision first.");return
     table=st.session_state.forecast;st.line_chart(table.set_index("Month")[["Temperature (°C)"]],height=250);st.line_chart(table.set_index("Month")[["Forecast demand"]],height=280);st.dataframe(table.assign(**{"Recommended stock":np.ceil(table["Forecast demand"]*1.1).astype(int)}),use_container_width=True,hide_index=True)
 def pricing_page():
-    header("DYNAMIC PRICING","Price with <span>market awareness.</span>","Balance customer demand, competition, seasonality and gross profit.");p=normalize_prediction(st.session_state.prediction)
-    if not p:st.info("Generate a decision first.");return
+    header("DYNAMIC PRICING","Price with <span>market awareness.</span>","Balance customer demand, competition, seasonality and gross profit.")
+    p=normalize_prediction(st.session_state.get("prediction"))
+    if not p:
+        for saved in st.session_state.get("saved",[]):
+            p=normalize_prediction(saved)
+            if p:break
+    if not p:
+        restored,restore_message=latest_prediction(st.secrets)
+        p=normalize_prediction(restored) if restored else None
+        if p:
+            st.session_state.prediction=p
+            st.info("Restored your latest generated decision from MongoDB.")
+    if not p:
+        st.warning("No generated decision is available in this session or MongoDB. Generate a decision in Product Analysis first.")
+        st.caption("If you already generated one, check the MongoDB connection in Settings or regenerate after the app finishes deploying.")
+        return
     a,b,c,d=st.columns(4);a.metric("Market reference",f"₹{p['market']:,.2f}");b.metric("Product MRP",f"₹{p.get('mrp',_mrp_for_product(p['product']) or 0):,.2f}");c.metric("Suggested price",f"₹{p['suggested']:,.2f}");d.metric("Difference vs market",f"{((p['suggested']/p['market'])-1)*100:+.1f}%")
     mrp_cap=float(p.get("mrp",_mrp_for_product(p["product"]) or 0))
     if mrp_cap and p["suggested"] <= mrp_cap:st.success("MRP compliance check passed: recommended selling price is not above MRP.")
