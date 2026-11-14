@@ -616,6 +616,7 @@ elif st.session_state.user:
         for saved in st.session_state.saved[:10]:
             p=normalize_prediction(saved)
             if p:st.markdown(f"<div class='card'><h3>{html.escape(str(p['product']))} · {html.escape(str(p['city']))} · {p['month']}</h3><p class='small'>Demand {int(p['pred']):,} · Stock {int(p['stock']):,} · Market ₹{p['market']:,.2f} · Social Viral {p.get('social',50)}/100 · Confidence {p['confidence']}%</p></div>",unsafe_allow_html=True)
-    elif st.session_state.page=="inventory":inventory_optimizer_page()\n    elif st.session_state.page=="settings":settings_page()
+    elif st.session_state.page=="inventory":inventory_optimizer_page()
+    elif st.session_state.page=="settings":settings_page()
     else:st.session_state.page="dashboard";st.rerun()
 else:st.session_state.page="welcome";st.rerun()
