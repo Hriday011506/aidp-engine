@@ -13,6 +13,7 @@ except ImportError:
     MongoClient = None
 
 _CLIENT = None
+_CLIENT_URI = None
 
 
 def _settings(secrets):
@@ -22,20 +23,42 @@ def _settings(secrets):
 
 
 def get_database(secrets):
-    global _CLIENT
+    global _CLIENT, _CLIENT_URI
     if MongoClient is None:
         return None, "pymongo is not installed."
     uri, database = _settings(secrets)
     if not uri:
         return None, "MongoDB is not configured. Add MONGODB_URI to Streamlit Secrets."
     try:
-        if _CLIENT is None:
-            _CLIENT = MongoClient(uri, serverSelectionTimeoutMS=4000, connectTimeoutMS=4000)
+        # Recreate the client whenever the secret changes; Streamlit can keep
+        # a Python process alive after credentials are edited in app settings.
+        if _CLIENT is None or _CLIENT_URI != uri:
+            if _CLIENT is not None:
+                _CLIENT.close()
+            _CLIENT = MongoClient(
+                uri,
+                authSource="admin",
+                serverSelectionTimeoutMS=8000,
+                connectTimeoutMS=8000,
+                retryWrites=True,
+            )
+            _CLIENT_URI = uri
         _CLIENT.admin.command("ping")
         return _CLIENT[database], "Connected to MongoDB."
     except Exception as exc:
+        if _CLIENT is not None:
+            _CLIENT.close()
         _CLIENT = None
-        return None, f"MongoDB connection failed: {exc}"
+        _CLIENT_URI = None
+        message = str(exc)
+        if "Authentication failed" in message or "bad auth" in message.lower():
+            return None, (
+                "MongoDB reached the Atlas cluster, but Atlas rejected the database "
+                "credentials. Verify the Database Access username/password for this "
+                "same Atlas project, then replace the complete MONGODB_URI secret. "
+                "The database name does not affect authentication."
+            )
+        return None, f"MongoDB connection failed: {message}"
 
 
 def save_prediction(secrets, prediction):
