@@ -151,3 +151,15 @@ def load_sales_history(secrets, product=None):
         return rows, "Loaded sales history from MongoDB." if rows else "No matching sales history found in MongoDB."
     except Exception as exc:
         return None, f"Could not load sales history: {exc}"
+
+def list_users(secrets):
+    """Return registered app users without password hashes or salts."""
+    db, message = get_database(secrets)
+    if db is None:
+        return None, message
+    try:
+        rows = list(db["users"].find({}, {"_id": 0, "password_hash": 0, "password_salt": 0}).sort("created_at", -1))
+        return rows, f"Loaded {len(rows)} registered users."
+    except Exception as exc:
+        return None, f"Could not load users: {exc}"
+
