@@ -27,6 +27,7 @@ load_sales_history = mongo_store.load_sales_history
 get_database = mongo_store.get_database
 save_user = mongo_store.save_user
 get_user_by_email = mongo_store.get_user_by_email
+list_users = mongo_store.list_users
 
 try:
     import holidays
@@ -63,10 +64,10 @@ def signup(email,password,gst,turnover):
     if existing:
         return False,"An account with this email already exists."
     salt=secrets.token_hex(16)
-    user={"email":email,"password_hash":_password_hash(password,salt),"password_salt":salt,"gst":gst.strip(),"turnover":turnover,"role":"admin"}
+    user={"email":email,"password_hash":_password_hash(password,salt),"password_salt":salt,"gst":gst.strip(),"turnover":turnover,"role":"user"}
     ok,message=save_user(st.secrets,user)
     if ok:
-        st.session_state.users[email]={"email":email,"gst":gst.strip(),"turnover":turnover,"role":"admin"}
+        st.session_state.users[email]={"email":email,"gst":gst.strip(),"turnover":turnover,"role":"user"}
         return True,"Account created and securely saved to MongoDB."
     return False,message
 
@@ -390,6 +391,32 @@ def copilot_page():
             elif "price" in query:answer=f"The market reference is ₹{p['market']:,.2f}; the demand-aware recommendation is ₹{p['suggested']:,.2f}."
             else:answer=f"The model forecasts {int(p['pred']):,} units with {p['confidence']}% confidence. Trend is {p['trend']}/100, social score is {p.get('social',50)}/100 and temperature is {p['temp']:.1f} °C."
             st.markdown(f"<div class='decision'><h3>OptiRetail AI</h3><p>{html.escape(answer)}</p></div>",unsafe_allow_html=True)
+def admin_page():
+    if str((st.session_state.user or {}).get("role","user")).lower() != "admin":
+        st.error("Admin access required.")
+        return
+    header("ADMINISTRATION","Manage your <span>OptiRetail workspace.</span>","Overview of registered accounts and platform data.")
+    users,message=list_users(st.secrets)
+    if users is None:
+        st.error(message)
+        return
+    db,db_message=get_database(st.secrets)
+    if db is None:
+        st.error(db_message)
+        return
+    c1,c2,c3,c4=st.columns(4)
+    c1.metric("Registered users",len(users))
+    c2.metric("Admin accounts",sum(1 for u in users if str(u.get("role","user")).lower()=="admin"))
+    c3.metric("Pricing decisions",db["predictions"].count_documents({}))
+    c4.metric("Inventory records",db["inventory"].count_documents({}))
+    st.markdown("### Registered users")
+    if users:
+        safe=[{"Email":u.get("email",""),"Role":u.get("role","user"),"GST Number":u.get("gst",""),"Annual Turnover":u.get("turnover",""),"Created":str(u.get("created_at",""))} for u in users]
+        st.dataframe(pd.DataFrame(safe),use_container_width=True,hide_index=True)
+    else:
+        st.info("No registered users found.")
+    st.caption("Password hashes and salts are never displayed in the admin panel.")
+
 def settings_page():
     header("SETTINGS","Configure your <span>workspace.</span>","Account information and connected retail data.")
     user=st.session_state.user or {}
@@ -489,6 +516,7 @@ with st.sidebar:
     logo()
     if st.session_state.user:
         st.caption(st.session_state.user.get("email","Business User"));items=[("Dashboard","dashboard"),("Product Analysis","product"),("Demand Forecasting","forecast"),("Dynamic Pricing","pricing"),("Market Insights","market"),("Product Comparison","compare"),("AI Simulator","simulator"),("Alerts & Risk","alerts"),("AI Decision Copilot","copilot"),("Multi-Store Inventory","inventory"),("Saved Analyses","saved"),("Settings","settings")]
+        if str(st.session_state.user.get("role","user")).lower()=="admin":items.append(("Admin Panel","admin"))
         for label,target in items:
             if st.button(label,use_container_width=True,key="nav_"+target):st.session_state.page=target;st.rerun()
         if st.button("Sign out",use_container_width=True,key="signout"):
@@ -776,5 +804,6 @@ elif st.session_state.user:
             if p:st.markdown(f"<div class='card'><h3>{html.escape(str(p['product']))} · {html.escape(str(p['city']))} · {p['month']}</h3><p class='small'>Demand {int(p['pred']):,} · Stock {int(p['stock']):,} · Market ₹{p['market']:,.2f} · Social Viral {p.get('social',50)}/100 · Confidence {p['confidence']}%</p></div>",unsafe_allow_html=True)
     elif st.session_state.page=="inventory":inventory_optimizer_page()
     elif st.session_state.page=="settings":settings_page()
+    elif st.session_state.page=="admin":admin_page()
     else:st.session_state.page="dashboard";st.rerun()
 else:st.session_state.page="welcome";st.rerun()
