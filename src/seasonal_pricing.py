@@ -53,7 +53,9 @@ def explain_seasonality(category, temperature_c, multiplier):
 def pricing_adjustment(market_price, demand_multiplier, category, mrp):
     """Small weather-driven competitive adjustment; final output never exceeds MRP."""
     # Keep the movement modest until SKU-level price elasticity is learned.
-    weather_component = max(-0.04, min(0.04, (float(demand_multiplier) - 1.0) * 0.20))
+    weather_component = max(-0.04, min(0.0, (float(demand_multiplier) - 1.0) * 0.20))
     category_component = -0.01 if category in {"ice_cream", "blanket", "winter_wear"} and demand_multiplier < 0.95 else 0.0
     raw = float(market_price) * (1.0 + weather_component + category_component)
-    return round(max(0.01, min(raw, float(mrp))), 2), weather_component + category_component
+    # Stay at or below the market reference; avoid charging a seasonal premium
+    # until real SKU-level willingness-to-pay / elasticity data is available.
+    return round(max(0.01, min(raw, float(market_price), float(mrp))), 2), weather_component + category_component
