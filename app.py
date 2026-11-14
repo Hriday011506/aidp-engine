@@ -11,6 +11,7 @@ import pandas as pd
 import requests
 import streamlit as st
 from sklearn.ensemble import RandomForestRegressor
+from src.enterprise_inventory import demo_inventory, calculate_inventory_position, recommend_transfers, validate_inventory
 
 try:
     import holidays
@@ -257,10 +258,79 @@ def copilot_page():
             st.markdown(f"<div class='decision'><h3>OptiRetail AI</h3><p>{html.escape(answer)}</p></div>",unsafe_allow_html=True)
 def settings_page():
     header("SETTINGS","Configure your <span>workspace.</span>","Presentation build settings and account information.");user=st.session_state.user or {};st.text_input("Email",value=user.get("email",""),disabled=True);st.text_input("GST Number",value=user.get("gst",""),disabled=True);st.text_input("Annual Turnover",value=user.get("turnover",""),disabled=True);st.info("MongoDB and Brevo are disabled in this presentation build. Account data is kept in the Streamlit session.")
+
+def inventory_optimizer_page():
+    header("ENTERPRISE INVENTORY", "Balance stock across <span>every store.</span>",
+           "Find store-level shortages, redirect available network stock and reduce avoidable procurement.")
+    st.markdown("<div class='card'><div class='eyebrow'>NETWORK INVENTORY PLANNER</div><h3>Start with sample data or upload your store inventory CSV</h3><p class='small'>Required columns: Store, SKU, Product, On hand, Forecast demand, Lead time (days). You can edit the table before calculating recommendations.</p></div>", unsafe_allow_html=True)
+    if "network_inventory" not in st.session_state:
+        st.session_state.network_inventory = demo_inventory()
+    left, right = st.columns([1, 1])
+    with left:
+        if st.button("Load demonstration data", use_container_width=True, key="load_network_demo"):
+            st.session_state.network_inventory = demo_inventory()
+            st.rerun()
+    with right:
+        uploaded = st.file_uploader("Upload inventory CSV", type=["csv"], key="network_inventory_upload")
+        if uploaded is not None:
+            try:
+                st.session_state.network_inventory = pd.read_csv(uploaded)
+                st.success("CSV loaded. Review the rows below.")
+            except Exception as exc:
+                st.error(f"Could not read CSV: {exc}")
+    safety, cost = st.columns(2)
+    with safety:
+        safety_pct = st.slider("Safety stock buffer", 0, 40, 10, 1, format="%d%%")
+    with cost:
+        transfer_cost = st.number_input("Estimated transfer cost per unit (₹)", min_value=0.0, value=2.5, step=0.5)
+    edited = st.data_editor(st.session_state.network_inventory, num_rows="dynamic", use_container_width=True, hide_index=True, key="network_inventory_editor")
+    if st.button("Optimize store inventory →", type="primary", use_container_width=True, key="run_inventory_optimizer"):
+        valid, message = validate_inventory(edited)
+        if not valid:
+            st.error(message)
+        else:
+            st.session_state.network_inventory = edited.copy()
+            position = calculate_inventory_position(edited, safety_pct)
+            transfers = recommend_transfers(position, transfer_cost)
+            st.session_state.network_inventory_result = position
+            st.session_state.network_transfer_result = transfers
+    position = st.session_state.get("network_inventory_result")
+    transfers = st.session_state.get("network_transfer_result")
+    if position is None:
+        st.info("Run the optimizer to see network-wide stock recommendations.")
+        return
+    shortage_units = int(position["Shortage"].sum())
+    surplus_units = int(position["Surplus"].sum())
+    transfer_units = int(transfers["Transfer units"].sum()) if not transfers.empty else 0
+    uncovered = max(0, shortage_units - transfer_units)
+    a, b, c, d = st.columns(4)
+    a.metric("Stores / SKUs", f"{position['Store'].nunique()} / {position['SKU'].nunique()}")
+    b.metric("Network surplus", f"{surplus_units:,} units")
+    c.metric("Transfer opportunity", f"{transfer_units:,} units")
+    d.metric("Uncovered shortage", f"{uncovered:,} units")
+    st.markdown("#### Recommended store transfers")
+    if transfers.empty:
+        st.success("No inter-store transfers are required based on the current inputs.")
+    else:
+        st.dataframe(transfers, use_container_width=True, hide_index=True)
+        st.caption(f"Estimated transfer cost: ₹{transfers['Est. transfer cost (₹)'].sum():,.2f}")
+    st.markdown("#### Store-level inventory position")
+    st.dataframe(position[["Store", "SKU", "Product", "On hand", "Forecast demand", "Safety stock", "Target stock", "Surplus", "Shortage", "Coverage (days)", "Risk"]], use_container_width=True, hide_index=True)
+    procurement = position.groupby(["SKU", "Product"], as_index=False)["Shortage"].sum()
+    if not transfers.empty:
+        covered = transfers.groupby("SKU")["Transfer units"].sum()
+        procurement["Transfer coverage"] = procurement["SKU"].map(covered).fillna(0).astype(int)
+    else:
+        procurement["Transfer coverage"] = 0
+    procurement["Suggested procurement after transfers"] = (procurement["Shortage"] - procurement["Transfer coverage"]).clip(lower=0).astype(int)
+    st.markdown("#### Procurement still required after transfers")
+    st.dataframe(procurement[procurement["Suggested procurement after transfers"] > 0], use_container_width=True, hide_index=True)
+    st.caption("Planning estimate only: transfer cost is a user-supplied assumption. Add real distances, handling costs, capacity, expiry and transfer lead times before using this for live operations.")
+
 with st.sidebar:
     logo()
     if st.session_state.user:
-        st.caption(st.session_state.user.get("email","Business User"));items=[("Dashboard","dashboard"),("Product Analysis","product"),("Demand Forecasting","forecast"),("Dynamic Pricing","pricing"),("Market Insights","market"),("Product Comparison","compare"),("AI Simulator","simulator"),("Alerts & Risk","alerts"),("AI Decision Copilot","copilot"),("Saved Analyses","saved"),("Settings","settings")]
+        st.caption(st.session_state.user.get("email","Business User"));items=[("Dashboard","dashboard"),("Product Analysis","product"),("Demand Forecasting","forecast"),("Dynamic Pricing","pricing"),("Market Insights","market"),("Product Comparison","compare"),("AI Simulator","simulator"),("Alerts & Risk","alerts"),("AI Decision Copilot","copilot"),("Multi-Store Inventory","inventory"),("Saved Analyses","saved"),("Settings","settings")]
         for label,target in items:
             if st.button(label,use_container_width=True,key="nav_"+target):st.session_state.page=target;st.rerun()
         if st.button("Sign out",use_container_width=True,key="signout"):
@@ -546,6 +616,6 @@ elif st.session_state.user:
         for saved in st.session_state.saved[:10]:
             p=normalize_prediction(saved)
             if p:st.markdown(f"<div class='card'><h3>{html.escape(str(p['product']))} · {html.escape(str(p['city']))} · {p['month']}</h3><p class='small'>Demand {int(p['pred']):,} · Stock {int(p['stock']):,} · Market ₹{p['market']:,.2f} · Social Viral {p.get('social',50)}/100 · Confidence {p['confidence']}%</p></div>",unsafe_allow_html=True)
-    elif st.session_state.page=="settings":settings_page()
+    elif st.session_state.page=="inventory":inventory_optimizer_page()\n    elif st.session_state.page=="settings":settings_page()
     else:st.session_state.page="dashboard";st.rerun()
 else:st.session_state.page="welcome";st.rerun()
