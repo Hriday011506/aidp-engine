@@ -68,6 +68,10 @@ def optimize_price(market_price, mrp, unit_cost, elasticity_result, baseline_uni
     if cost <= 0 or cap <= 0 or market <= 0:
         raise ValueError("Market price, MRP and unit cost must be positive.")
     ceiling = min(market, cap)
+    if cost >= ceiling:
+        raise ValueError("Unit cost is at or above the allowed selling-price ceiling; no positive gross margin is possible.")
+    if float(baseline_units) <= 0:
+        raise ValueError("Baseline forecast units must be positive.")
     floor = min(ceiling, max(cost, ceiling * 0.70))
     if floor >= ceiling:
         candidates = np.array([ceiling])
