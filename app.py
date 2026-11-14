@@ -2,6 +2,8 @@ import base64
 import calendar
 import datetime as dt
 import hashlib
+import hmac
+import secrets
 import html
 import re
 from difflib import SequenceMatcher
@@ -15,7 +17,7 @@ from src.enterprise_inventory import demo_inventory, calculate_inventory_positio
 from src.seasonal_pricing import classify_product, seasonal_demand_multiplier, explain_seasonality, pricing_adjustment
 from src.price_elasticity import estimate_elasticity, optimize_price
 from src.inventory_economics import optimize_price_with_inventory
-from src.mongo_store import save_prediction, latest_prediction, load_inventory, replace_inventory, load_sales_history, get_database
+from src.mongo_store import save_prediction, latest_prediction, load_inventory, replace_inventory, load_sales_history, get_database, save_user, get_user_by_email
 
 try:
     import holidays
@@ -41,13 +43,39 @@ input,textarea{color:#0f172a!important;background:#fff!important}label,div[data-
 </style>
 """,unsafe_allow_html=True)
 
-def ph(value): return hashlib.sha256(str(value).encode()).hexdigest()
+def _password_hash(password, salt):
+    return hashlib.pbkdf2_hmac("sha256", str(password).encode("utf-8"), bytes.fromhex(salt), 310000).hex()
+
 def signup(email,password,gst,turnover):
     email=email.strip().lower()
-    if email in st.session_state.users:return False,"An account with this email already exists in this session."
-    st.session_state.users[email]={"email":email,"password":ph(password),"gst":gst.strip(),"turnover":turnover};return True,"Account created successfully."
+    existing,message=get_user_by_email(st.secrets,email)
+    if message not in ("User found.","No account found for this email."):
+        return False,message
+    if existing:
+        return False,"An account with this email already exists."
+    salt=secrets.token_hex(16)
+    user={"email":email,"password_hash":_password_hash(password,salt),"password_salt":salt,"gst":gst.strip(),"turnover":turnover,"role":"admin"}
+    ok,message=save_user(st.secrets,user)
+    if ok:
+        st.session_state.users[email]={"email":email,"gst":gst.strip(),"turnover":turnover,"role":"admin"}
+        return True,"Account created and securely saved to MongoDB."
+    return False,message
+
 def authenticate(email,password):
-    user=st.session_state.users.get(email.strip().lower());return user if user and user.get("password")==ph(password) else None
+    email=email.strip().lower()
+    user,message=get_user_by_email(st.secrets,email)
+    if not user:
+        return None,message
+    expected=user.get("password_hash","")
+    salt=user.get("password_salt","")
+    if not expected or not salt:
+        return None,"This account uses an older password format. Please contact the administrator to reset it."
+    actual=_password_hash(password,salt)
+    if not hmac.compare_digest(actual,expected):
+        return None,"Invalid email or password."
+    user.pop("password_hash",None)
+    user.pop("password_salt",None)
+    return user,"Login successful."
 def trend(product): return int(np.random.default_rng(sum(ord(x) for x in product.lower())).integers(45,91))
 def weather_fallback(lat=20):
     base=25-min(abs(lat),45)*.06;amp=min(14,8+abs(lat)*.1);phase=5 if lat>=0 else 11
@@ -616,13 +644,13 @@ elif st.session_state.page=="login":
                     password=st.text_input("Password",type="password",placeholder="Enter your password")
                     submit=st.form_submit_button("Log in  →",use_container_width=True)
                 if submit:
-                    user=authenticate(email,password)
+                    user,message=authenticate(email,password)
                     if user:
                         st.session_state.user=user
                         st.session_state.page="dashboard"
                         st.rerun()
                     else:
-                        st.error("Invalid email or password. Please try again or create an account.")
+                        st.error(message or "Invalid email or password. Please try again or create an account.")
                 st.caption("New to OptiRetail AI?")
                 if st.button("Create an account",key="login_signup",use_container_width=True):
                     st.session_state.page="signup"
