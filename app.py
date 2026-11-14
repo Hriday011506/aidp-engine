@@ -244,7 +244,12 @@ def dashboard():
     simulator()
 def product_page():
     header("PRODUCT ANALYSIS","Analyze a product with <span>live market context.</span>","Select a product and location, refresh the live market reference, then generate an explainable AI decision.");inputs();p=normalize_prediction(st.session_state.prediction)
-    if matches(p):st.markdown(f"<div class='card'><div class='eyebrow'>LATEST RESULT</div><h3>{html.escape(str(p.get('product','')))} · {html.escape(str(p.get('city','')))} · {html.escape(str(p.get('month','')))}</h3><p class='small'>Forecast demand: <b>{int(p.get('pred',0)):,}</b> units · Weather: <b>{p.get('temp',0):.1f} °C</b> · Holiday days: <b>{p.get('holiday',0)}</b> · Social Viral: <b>{p.get('social',50)}/100</b> · Confidence: <b>{p.get('confidence',0)}%</b> · Market: <b>₹{p.get('market',0):,.2f}</b></p></div>",unsafe_allow_html=True)
+    if matches(p):
+        st.markdown(f"<div class='card'><div class='eyebrow'>LATEST RESULT</div><h3>{html.escape(str(p.get('product','')))} · {html.escape(str(p.get('city','')))} · {html.escape(str(p.get('month','')))}</h3><p class='small'>Forecast demand: <b>{int(p.get('pred',0)):,}</b> units · Weather: <b>{p.get('temp',0):.1f} °C</b> · Holiday days: <b>{p.get('holiday',0)}</b> · Social Viral: <b>{p.get('social',50)}/100</b> · Confidence: <b>{p.get('confidence',0)}%</b> · Market: <b>₹{p.get('market',0):,.2f}</b></p></div>",unsafe_allow_html=True)
+        if st.button("Open Dynamic Pricing →",key="open_pricing_from_result",use_container_width=True):
+            st.session_state.prediction=p
+            st.session_state.page="pricing"
+            st.rerun()
 def forecast_page():
     header("DEMAND FORECASTING","See demand change <span>across the year.</span>","Each month combines weather, holidays, product trend and social demand signals.");p=normalize_prediction(st.session_state.prediction)
     if not p or st.session_state.forecast is None:st.info("Generate a decision first.");return
