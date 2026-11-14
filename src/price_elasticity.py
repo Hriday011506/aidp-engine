@@ -77,7 +77,7 @@ def optimize_price(market_price, mrp, unit_cost, elasticity_result, baseline_uni
         candidates = np.array([ceiling])
     else:
         candidates = np.linspace(floor, ceiling, 61)
-    reference_price = float(elasticity_result["average_price"])
+    reference_price = market  # Current forecast is treated as demand at the current market reference price.
     reference_units = float(baseline_units)
     elasticity = float(elasticity_result["elasticity"])
     expected_units = reference_units * (candidates / reference_price) ** elasticity
