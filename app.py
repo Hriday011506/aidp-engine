@@ -274,9 +274,20 @@ def pricing_page():
     st.caption("Upload actual sales history for this product. Required columns: units, selling_price. Optional: date, product, promo (0/1), stock_available (0/1).")
     history_file=st.file_uploader("Historical sales CSV",type=["csv"],key="elasticity_history")
     unit_cost=st.number_input("Unit cost (₹) — purchase/landed cost",min_value=0.0,value=0.0,step=1.0,key="elasticity_unit_cost")
-    if history_file is not None:
+    mongo_sales_rows,mongo_sales_message=load_sales_history(st.secrets,p["product"])
+    use_mongo_sales=st.checkbox("Use sales history stored in MongoDB when available",value=False,key="use_mongo_sales")
+    if history_file is not None or use_mongo_sales:
         try:
-            history=pd.read_csv(history_file)
+            if history_file is not None:
+                history=pd.read_csv(history_file)
+            elif mongo_sales_rows:
+                history=pd.DataFrame(mongo_sales_rows)
+                st.caption(mongo_sales_message)
+            else:
+                st.info(mongo_sales_message)
+                history=None
+            if history is None:
+                return
             estimate=estimate_elasticity(history,product=p["product"])
             e1,e2,e3=st.columns(3)
             e1.metric("Valid observations",estimate.get("observations",0))
@@ -338,7 +349,18 @@ def copilot_page():
             else:answer=f"The model forecasts {int(p['pred']):,} units with {p['confidence']}% confidence. Trend is {p['trend']}/100, social score is {p.get('social',50)}/100 and temperature is {p['temp']:.1f} °C."
             st.markdown(f"<div class='decision'><h3>OptiRetail AI</h3><p>{html.escape(answer)}</p></div>",unsafe_allow_html=True)
 def settings_page():
-    header("SETTINGS","Configure your <span>workspace.</span>","Presentation build settings and account information.");user=st.session_state.user or {};st.text_input("Email",value=user.get("email",""),disabled=True);st.text_input("GST Number",value=user.get("gst",""),disabled=True);st.text_input("Annual Turnover",value=user.get("turnover",""),disabled=True);st.info("MongoDB and Brevo are disabled in this presentation build. Account data is kept in the Streamlit session.")
+    header("SETTINGS","Configure your <span>workspace.</span>","Account information and connected retail data.")
+    user=st.session_state.user or {}
+    st.text_input("Email",value=user.get("email",""),disabled=True)
+    st.text_input("GST Number",value=user.get("gst",""),disabled=True)
+    st.text_input("Annual Turnover",value=user.get("turnover",""),disabled=True)
+    st.markdown("### MongoDB connection")
+    st.caption("Add MONGODB_URI and optionally MONGODB_DATABASE in Streamlit Cloud → App settings → Secrets. Keep credentials private; never commit them to GitHub.")
+    if st.button("Test MongoDB connection",key="test_mongodb_connection"):
+        db,message=get_database(st.secrets)
+        if db is not None:st.success(message)
+        else:st.error(message)
+    st.caption("Collections used: predictions, inventory and sales_history. Inventory can be loaded/saved from Multi-Store Inventory; decisions are saved automatically; sales history can be read by product from Dynamic Pricing.")
 
 def inventory_optimizer_page():
     header("ENTERPRISE INVENTORY", "Balance stock across <span>every store.</span>",
@@ -346,6 +368,19 @@ def inventory_optimizer_page():
     st.markdown("<div class='card'><div class='eyebrow'>NETWORK INVENTORY PLANNER</div><h3>Start with sample data or upload your store inventory CSV</h3><p class='small'>Required columns: Store, SKU, Product, On hand, Forecast demand, Lead time (days). You can edit the table before calculating recommendations.</p></div>", unsafe_allow_html=True)
     if "network_inventory" not in st.session_state:
         st.session_state.network_inventory = demo_inventory()
+    db_left, db_right = st.columns(2)
+    with db_left:
+        if st.button("Load inventory from MongoDB",use_container_width=True,key="load_inventory_mongo"):
+            rows,message=load_inventory(st.secrets)
+            if rows:
+                st.session_state.network_inventory=pd.DataFrame(rows)
+                st.success(message)
+                st.rerun()
+            else:st.warning(message)
+    with db_right:
+        if st.button("Save current inventory to MongoDB",use_container_width=True,key="save_inventory_mongo"):
+            ok,message=replace_inventory(st.secrets,st.session_state.network_inventory)
+            (st.success if ok else st.error)(message)
     left, right = st.columns([1, 1])
     with left:
         if st.button("Load demonstration data", use_container_width=True, key="load_network_demo"):
