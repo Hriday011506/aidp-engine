@@ -151,7 +151,7 @@ def generate():
     suggested,weather_price_adjustment=pricing_adjustment(base,seasonality,category,mrp)
     # Inventory holding recommendation follows the same seasonally adjusted demand forecast.
     stock=float(np.ceil(pred*1.10))
-    p={"product":st.session_state.product,"category":category,"seasonality":seasonality,"seasonality_explanation":explain_seasonality(category,temp,seasonality),"weather_price_adjustment":weather_price_adjustment,"pred":pred,"stock":stock,"temp":temp,"holiday":holiday,"trend":trend_score,"social":social_score,"market":float(market),"mrp":mrp,"suggested":suggested,"source":weather_source,"social_source":social_source,"confidence":int(np.clip(68+abs(trend_score-60)*.18+abs(social_score-60)*.10,68,95))};st.session_state.forecast=table;st.session_state.prediction=p;st.session_state.saved.insert(0,p.copy());st.session_state.saved=st.session_state.saved[:20]
+    p={"product":st.session_state.product,"city":st.session_state.city,"month":st.session_state.month,"category":category,"seasonality":seasonality,"seasonality_explanation":explain_seasonality(category,temp,seasonality),"weather_price_adjustment":weather_price_adjustment,"pred":pred,"stock":stock,"temp":temp,"holiday":holiday,"trend":trend_score,"social":social_score,"market":float(market),"mrp":mrp,"suggested":suggested,"source":weather_source,"social_source":social_source,"confidence":int(np.clip(68+abs(trend_score-60)*.18+abs(social_score-60)*.10,68,95))};st.session_state.forecast=table;st.session_state.prediction=p;st.session_state.saved.insert(0,p.copy());st.session_state.saved=st.session_state.saved[:20]
     saved_ok,saved_message=save_prediction(st.secrets,p)
     st.session_state.mongo_save_message=saved_message
     return True
