@@ -17,7 +17,16 @@ from src.enterprise_inventory import demo_inventory, calculate_inventory_positio
 from src.seasonal_pricing import classify_product, seasonal_demand_multiplier, explain_seasonality, pricing_adjustment
 from src.price_elasticity import estimate_elasticity, optimize_price
 from src.inventory_economics import optimize_price_with_inventory
-from src.mongo_store import save_prediction, latest_prediction, load_inventory, replace_inventory, load_sales_history, get_database, save_user, get_user_by_email
+from src import mongo_store
+
+save_prediction = mongo_store.save_prediction
+latest_prediction = mongo_store.latest_prediction
+load_inventory = mongo_store.load_inventory
+replace_inventory = mongo_store.replace_inventory
+load_sales_history = mongo_store.load_sales_history
+get_database = mongo_store.get_database
+save_user = mongo_store.save_user
+get_user_by_email = mongo_store.get_user_by_email
 
 try:
     import holidays
