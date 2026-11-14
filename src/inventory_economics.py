@@ -35,7 +35,7 @@ def optimize_price_with_inventory(
     window_demand = expected_demand * min(1.0, sell_window / horizon)
     sold = np.minimum(stock, window_demand)
     unsold = np.maximum(0.0, stock - sold)
-    expires_within_horizon = expiry <= horizon
+    expires_within_horizon = expiry > 0 and expiry <= horizon
     expired_units = unsold if expires_within_horizon else np.zeros_like(unsold)
     held_units = np.zeros_like(unsold) if expires_within_horizon else unsold
     revenue = candidates * sold
