@@ -13,6 +13,7 @@ import streamlit as st
 from sklearn.ensemble import RandomForestRegressor
 from src.enterprise_inventory import demo_inventory, calculate_inventory_position, recommend_transfers, validate_inventory
 from src.seasonal_pricing import classify_product, seasonal_demand_multiplier, explain_seasonality, pricing_adjustment
+from src.price_elasticity import estimate_elasticity, optimize_price
 
 try:
     import holidays
@@ -243,12 +244,41 @@ def forecast_page():
     if not p or st.session_state.forecast is None:st.info("Generate a decision first.");return
     table=st.session_state.forecast;st.line_chart(table.set_index("Month")[["Temperature (°C)"]],height=250);st.line_chart(table.set_index("Month")[["Forecast demand"]],height=280);st.dataframe(table.assign(**{"Recommended stock":np.ceil(table["Forecast demand"]*1.1).astype(int)}),use_container_width=True,hide_index=True)
 def pricing_page():
-    header("DYNAMIC PRICING","Price with <span>market awareness.</span>","Compare the market reference with the demand-aware recommendation.");p=normalize_prediction(st.session_state.prediction)
+    header("DYNAMIC PRICING","Price with <span>market awareness.</span>","Balance customer demand, competition, seasonality and gross profit.");p=normalize_prediction(st.session_state.prediction)
     if not p:st.info("Generate a decision first.");return
     a,b,c,d=st.columns(4);a.metric("Market reference",f"₹{p['market']:,.2f}");b.metric("Product MRP",f"₹{p.get('mrp',_mrp_for_product(p['product']) or 0):,.2f}");c.metric("Suggested price",f"₹{p['suggested']:,.2f}");d.metric("Difference vs market",f"{((p['suggested']/p['market'])-1)*100:+.1f}%")
     mrp_cap=float(p.get("mrp",_mrp_for_product(p["product"]) or 0))
     if mrp_cap and p["suggested"] <= mrp_cap:st.success("MRP compliance check passed: recommended selling price is not above MRP.")
     st.markdown(f"<div class='decision'><h3>Pricing rationale</h3><p>Category: {html.escape(str(p.get('category','general')).replace('_',' ').title())}. {html.escape(str(p.get('seasonality_explanation','Seasonality signal unavailable.')))} Market reference ₹{p['market']:,.2f}; MRP ceiling ₹{mrp_cap:,.2f}; seasonally adjusted demand {int(p['pred']):,} units; temperature {p['temp']:.1f} °C; holidays {p['holiday']}; social score {p.get('social',50)}/100. Weather/seasonality price movement: {p.get('weather_price_adjustment',0)*100:+.1f}% before the MRP cap.</p></div>",unsafe_allow_html=True)
+    st.markdown("### Price elasticity & profit optimizer")
+    st.caption("Upload actual sales history for this product. Required columns: units, selling_price. Optional: date, product, promo (0/1), stock_available (0/1).")
+    history_file=st.file_uploader("Historical sales CSV",type=["csv"],key="elasticity_history")
+    unit_cost=st.number_input("Unit cost (₹) — purchase/landed cost",min_value=0.0,value=0.0,step=1.0,key="elasticity_unit_cost")
+    if history_file is not None:
+        try:
+            history=pd.read_csv(history_file)
+            estimate=estimate_elasticity(history,product=p["product"])
+            e1,e2,e3=st.columns(3)
+            e1.metric("Valid observations",estimate.get("observations",0))
+            e2.metric("Price points",estimate.get("unique_prices",0))
+            e3.metric("Estimated elasticity",f"{estimate['elasticity']:.2f}" if estimate.get("elasticity") is not None else "Not available")
+            st.caption(estimate.get("reason",""))
+            if estimate.get("reliable"):
+                st.caption(f"Model fit R²: {estimate['r_squared']:.2f}. Promotion and time trend are controlled where possible.")
+                if unit_cost <= 0:st.warning("Enter a positive unit cost to calculate a profit-maximizing price.")
+                elif st.button("Optimize for gross profit →",key="run_elasticity_optimizer"):
+                    try:
+                        result=optimize_price(p["market"],mrp_cap,unit_cost,estimate,p["pred"])
+                        q1,q2,q3=st.columns(3)
+                        q1.metric("Profit-aware price",f"₹{result['recommended_price']:,.2f}")
+                        q2.metric("Expected units",f"{result['expected_units']:,.1f}")
+                        q3.metric("Expected gross profit",f"₹{result['expected_gross_profit']:,.2f}")
+                        st.caption(f"Price search range ₹{result['price_floor']:,.2f}–₹{result['price_ceiling']:,.2f}. Revenue estimate ₹{result['expected_revenue']:,.2f}. Demand projection uses elasticity {estimate['elasticity']:.2f} and the current forecast as its baseline.")
+                        st.success("Optimized price respects both the current market reference and the product MRP.")
+                    except ValueError as exc:st.error(str(exc))
+            else:
+                st.info("OptiRetail will keep the existing conservative recommendation. It will not invent an elasticity estimate from insufficient or unreliable data.")
+        except Exception as exc:st.error(f"Could not process sales history: {exc}")
 def compare_page():
     header("PRODUCT COMPARISON","Compare products with <span>one model.</span>","Compare expected demand, peak month and inventory requirement.");a,b,c=st.columns(3)
     with a:p1=st.text_input("Product 1",value=st.session_state.product,key="cmp1")
