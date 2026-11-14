@@ -12,6 +12,7 @@ import requests
 import streamlit as st
 from sklearn.ensemble import RandomForestRegressor
 from src.enterprise_inventory import demo_inventory, calculate_inventory_position, recommend_transfers, validate_inventory
+from src.seasonal_pricing import classify_product, seasonal_demand_multiplier, explain_seasonality, pricing_adjustment
 
 try:
     import holidays
@@ -125,9 +126,10 @@ def social_viral_score(product):
     seed=sum(ord(c) for c in p.lower());return int(np.random.default_rng(seed).integers(42,78)),"Social trend proxy (demo)"
 
 def make_forecast(product,city):
-    resolved,temps,source=monthly_weather(city);product_trend=trend(product);social_score,social_source=social_viral_score(product);rows=[];year=dt.datetime.now().year
+    resolved,temps,source=monthly_weather(city);product_trend=trend(product);social_score,social_source=social_viral_score(product);rows=[];year=dt.datetime.now().year;category=classify_product(product)
     for number,month in enumerate(MONTHS,1):
-        temp=float(temps.get(month,25));holiday=holiday_days(year,number);features=pd.DataFrame({"holiday":[holiday],"temp":[temp],"trend":[product_trend],"social":[social_score]});demand=float(max(0,MODEL.predict(features)[0]));rows.append({"Month":month,"Temperature (°C)":round(temp,1),"Holiday days":holiday,"Trend score":product_trend,"Social Viral Score":social_score,"Forecast demand":round(demand)})
+        temp=float(temps.get(month,25));holiday=holiday_days(year,number);features=pd.DataFrame({"holiday":[holiday],"temp":[temp],"trend":[product_trend],"social":[social_score]});base_demand=float(max(0,MODEL.predict(features)[0]));seasonality=seasonal_demand_multiplier(category,temp);demand=base_demand*seasonality
+        rows.append({"Month":month,"Temperature (°C)":round(temp,1),"Holiday days":holiday,"Trend score":product_trend,"Social Viral Score":social_score,"Product category":category.replace("_"," ").title(),"Seasonality factor":round(seasonality,2),"Forecast demand":round(demand)})
     return pd.DataFrame(rows),resolved,source,social_source
 
 def _mrp_for_product(product):
@@ -141,10 +143,12 @@ def generate():
     mrp=float(st.session_state.get("mrp",0) or 0)
     if market is None or mrp <= 0:return False
     table,city,weather_source,social_source=make_forecast(st.session_state.product,st.session_state.city);row=table.loc[table.Month==st.session_state.month].iloc[0];pred=float(row["Forecast demand"]);temp=float(row["Temperature (°C)"]);holiday=int(row["Holiday days"]);trend_score=int(row["Trend score"]);social_score=int(row["Social Viral Score"])
-    demand_factor=float(np.clip((pred-700)/5000,-0.045,0.045));weather_factor=float(np.clip((temp-27)/250,-0.025,0.025));holiday_factor=float(np.clip(holiday/600,-0.012,0.012));trend_factor=float(np.clip((trend_score-60)/3000,-0.015,0.015));social_factor=float(np.clip((social_score-60)/1800,-0.025,0.025));adjustment=float(np.clip(demand_factor+weather_factor+holiday_factor+trend_factor+social_factor,-0.08,0.08));base=market*(1+adjustment)
-    # Retail selling price is capped at MRP. Floor to paise so rounding can never breach the cap.
-    suggested=float(np.floor(min(base,mrp)*100)/100)
-    p={"product":st.session_state.product,"city":city,"month":st.session_state.month,"pred":pred,"stock":float(np.ceil(pred*1.1)),"temp":temp,"holiday":holiday,"trend":trend_score,"social":social_score,"market":float(market),"mrp":mrp,"suggested":suggested,"source":weather_source,"social_source":social_source,"confidence":int(np.clip(68+abs(trend_score-60)*.18+abs(social_score-60)*.10,68,95))};st.session_state.forecast=table;st.session_state.prediction=p;st.session_state.saved.insert(0,p.copy());st.session_state.saved=st.session_state.saved[:20];return True
+    category=classify_product(st.session_state.product);seasonality=seasonal_demand_multiplier(category,temp)
+    demand_factor=float(np.clip((pred-700)/5000,-0.045,0.045));holiday_factor=float(np.clip(holiday/600,-0.012,0.012));trend_factor=float(np.clip((trend_score-60)/3000,-0.015,0.015));social_factor=float(np.clip((social_score-60)/1800,-0.025,0.025));base=market*(1+demand_factor+holiday_factor+trend_factor+social_factor)
+    suggested,weather_price_adjustment=pricing_adjustment(base,seasonality,category,mrp)
+    # Inventory holding recommendation follows the same seasonally adjusted demand forecast.
+    stock=float(np.ceil(pred*1.10))
+    p={"product":st.session_state.product,"category":category,"seasonality":seasonality,"seasonality_explanation":explain_seasonality(category,temp,seasonality),"weather_price_adjustment":weather_price_adjustment,"pred":pred,"stock":stock,"temp":temp,"holiday":holiday,"trend":trend_score,"social":social_score,"market":float(market),"mrp":mrp,"suggested":suggested,"source":weather_source,"social_source":social_source,"confidence":int(np.clip(68+abs(trend_score-60)*.18+abs(social_score-60)*.10,68,95))};st.session_state.forecast=table;st.session_state.prediction=p;st.session_state.saved.insert(0,p.copy());st.session_state.saved=st.session_state.saved[:20];return True
 
 def normalize_prediction(p):
     if not isinstance(p,dict):return None
@@ -244,7 +248,7 @@ def pricing_page():
     a,b,c,d=st.columns(4);a.metric("Market reference",f"₹{p['market']:,.2f}");b.metric("Product MRP",f"₹{p.get('mrp',_mrp_for_product(p['product']) or 0):,.2f}");c.metric("Suggested price",f"₹{p['suggested']:,.2f}");d.metric("Difference vs market",f"{((p['suggested']/p['market'])-1)*100:+.1f}%")
     mrp_cap=float(p.get("mrp",_mrp_for_product(p["product"]) or 0))
     if mrp_cap and p["suggested"] <= mrp_cap:st.success("MRP compliance check passed: recommended selling price is not above MRP.")
-    st.markdown(f"<div class='decision'><h3>Pricing rationale</h3><p>Recommendation uses the market reference of ₹{p['market']:,.2f}, MRP ceiling of ₹{mrp_cap:,.2f}, demand forecast of {int(p['pred']):,} units, temperature of {p['temp']:.1f} °C, {p['holiday']} holiday days and a Social Viral Score of {p.get('social',50)}/100.</p></div>",unsafe_allow_html=True)
+    st.markdown(f"<div class='decision'><h3>Pricing rationale</h3><p>Category: {html.escape(str(p.get('category','general')).replace('_',' ').title())}. {html.escape(str(p.get('seasonality_explanation','Seasonality signal unavailable.')))} Market reference ₹{p['market']:,.2f}; MRP ceiling ₹{mrp_cap:,.2f}; seasonally adjusted demand {int(p['pred']):,} units; temperature {p['temp']:.1f} °C; holidays {p['holiday']}; social score {p.get('social',50)}/100. Weather/seasonality price movement: {p.get('weather_price_adjustment',0)*100:+.1f}% before the MRP cap.</p></div>",unsafe_allow_html=True)
 def compare_page():
     header("PRODUCT COMPARISON","Compare products with <span>one model.</span>","Compare expected demand, peak month and inventory requirement.");a,b,c=st.columns(3)
     with a:p1=st.text_input("Product 1",value=st.session_state.product,key="cmp1")
