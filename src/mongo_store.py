@@ -123,3 +123,31 @@ def load_sales_history(secrets, product=None):
         return rows, "Loaded sales history from MongoDB." if rows else "No matching sales history found in MongoDB."
     except Exception as exc:
         return None, f"Could not load sales history: {exc}"
+
+def save_user(secrets, user):
+    """Persist a registered app user; passwords are stored only as salted hashes."""
+    db, message = get_database(secrets)
+    if db is None:
+        return False, message
+    try:
+        collection = db["users"]
+        collection.create_index("email", unique=True)
+        collection.insert_one(dict(user, created_at=datetime.now(timezone.utc)))
+        return True, "User account saved to MongoDB."
+    except Exception as exc:
+        if getattr(exc, "code", None) == 11000:
+            return False, "An account with this email already exists."
+        return False, f"Could not save user account: {exc}"
+
+
+def get_user_by_email(secrets, email):
+    """Fetch one app user by email without exposing MongoDB's internal _id."""
+    db, message = get_database(secrets)
+    if db is None:
+        return None, message
+    try:
+        user = db["users"].find_one({"email": str(email).strip().lower()}, {"_id": 0})
+        return (user, "User found.") if user else (None, "No account found for this email.")
+    except Exception as exc:
+        return None, f"Could not look up user account: {exc}"
+
