@@ -14,6 +14,7 @@ from sklearn.ensemble import RandomForestRegressor
 from src.enterprise_inventory import demo_inventory, calculate_inventory_position, recommend_transfers, validate_inventory
 from src.seasonal_pricing import classify_product, seasonal_demand_multiplier, explain_seasonality, pricing_adjustment
 from src.price_elasticity import estimate_elasticity, optimize_price
+from src.inventory_economics import optimize_price_with_inventory
 
 try:
     import holidays
@@ -265,16 +266,26 @@ def pricing_page():
             st.caption(estimate.get("reason",""))
             if estimate.get("reliable"):
                 st.caption(f"Model fit R²: {estimate['r_squared']:.2f}. Promotion and time trend are controlled where possible.")
+                st.markdown("#### Inventory and expiry assumptions")
+                inv1,inv2,inv3,inv4=st.columns(4)
+                with inv1:on_hand=st.number_input("Current sellable stock (units)",min_value=0,value=100,step=1,key="elasticity_on_hand")
+                with inv2:expiry_days=st.number_input("Days until expiry (0 = not perishable)",min_value=0,value=30,step=1,key="elasticity_expiry")
+                with inv3:holding_cost=st.number_input("Holding cost per unsold unit (₹)",min_value=0.0,value=0.0,step=0.5,key="elasticity_holding")
+                with inv4:writeoff_cost=st.number_input("Expiry write-off per unit (₹)",min_value=0.0,value=unit_cost,step=1.0,key="elasticity_writeoff")
                 if unit_cost <= 0:st.warning("Enter a positive unit cost to calculate a profit-maximizing price.")
-                elif st.button("Optimize for gross profit →",key="run_elasticity_optimizer"):
+                elif st.button("Optimize price with inventory risk →",key="run_elasticity_optimizer"):
                     try:
-                        result=optimize_price(p["market"],mrp_cap,unit_cost,estimate,p["pred"])
+                        result=optimize_price_with_inventory(p["market"],mrp_cap,unit_cost,estimate,p["pred"],on_hand,expiry_days,holding_cost,writeoff_cost)
                         q1,q2,q3=st.columns(3)
-                        q1.metric("Profit-aware price",f"₹{result['recommended_price']:,.2f}")
-                        q2.metric("Expected units",f"{result['expected_units']:,.1f}")
-                        q3.metric("Expected gross profit",f"₹{result['expected_gross_profit']:,.2f}")
-                        st.caption(f"Price search range ₹{result['price_floor']:,.2f}–₹{result['price_ceiling']:,.2f}. Revenue estimate ₹{result['expected_revenue']:,.2f}. Demand projection uses elasticity {estimate['elasticity']:.2f} and the current forecast as its baseline.")
-                        st.success("Optimized price respects both the current market reference and the product MRP.")
+                        q1.metric("Inventory-aware price",f"₹{result['recommended_price']:,.2f}")
+                        q2.metric("Expected units sold",f"{result['expected_units_sold']:,.1f}")
+                        q3.metric("Profit after inventory costs",f"₹{result['gross_profit_after_inventory_costs']:,.2f}")
+                        q4,q5,q6=st.columns(3)
+                        q4.metric("Expected unmet demand",f"{result['unmet_demand']:,.1f} units")
+                        q5.metric("Expected unsold stock",f"{result['unsold_units']:,.1f} units")
+                        q6.metric("Expected expiry units",f"{result['expected_expired_units']:,.1f} units")
+                        st.caption(f"Estimated revenue ₹{result['expected_revenue']:,.2f}; carrying cost ₹{result['estimated_holding_cost']:,.2f}; expiry write-off ₹{result['estimated_writeoff_cost']:,.2f}. Selling window: {result['sell_window_days']:.0f} days. Price range ₹{result['price_floor']:,.2f}–₹{result['price_ceiling']:,.2f}.")
+                        st.success("Recommendation accounts for available stock, unmet demand, expiry exposure and holding costs, while respecting market price and MRP.")
                     except ValueError as exc:st.error(str(exc))
             else:
                 st.info("OptiRetail will keep the existing conservative recommendation. It will not invent an elasticity estimate from insufficient or unreliable data.")
